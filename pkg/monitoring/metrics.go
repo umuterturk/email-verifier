@@ -1,3 +1,5 @@
+// Package monitoring provides metrics collection and monitoring functionality for the email validator service.
+// It includes Prometheus metrics for tracking request rates, latencies, and various operational metrics.
 package monitoring
 
 import (

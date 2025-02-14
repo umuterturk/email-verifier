@@ -68,7 +68,11 @@ func TestHandleValidate(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to make request: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					t.Errorf("Failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode != tt.wantStatus {
 				t.Errorf("got status %d, want %d", resp.StatusCode, tt.wantStatus)
@@ -121,7 +125,11 @@ func TestHandleBatchValidate(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to make request: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					t.Errorf("Failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode != tt.wantStatus {
 				t.Errorf("got status %d, want %d", resp.StatusCode, tt.wantStatus)
@@ -172,7 +180,11 @@ func TestHandleTypoSuggestions(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to make request: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					t.Errorf("Failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode != tt.wantStatus {
 				t.Errorf("got status %d, want %d", resp.StatusCode, tt.wantStatus)
@@ -199,7 +211,11 @@ func TestHandleStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Errorf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("got status %d, want %d", resp.StatusCode, http.StatusOK)
@@ -231,7 +247,11 @@ func TestInvalidJSON(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to make request: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					t.Errorf("Failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode != http.StatusBadRequest {
 				t.Errorf("got status %d, want %d", resp.StatusCode, http.StatusBadRequest)

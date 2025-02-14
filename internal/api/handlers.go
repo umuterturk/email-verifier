@@ -1,3 +1,5 @@
+// Package api implements the HTTP handlers and routing for the email validator service.
+// It provides endpoints for email validation, batch processing, and service status.
 package api
 
 import (
@@ -32,7 +34,10 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 func sendError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
+	if err := json.NewEncoder(w).Encode(map[string]string{"error": message}); err != nil {
+		// If we can't send the error response, log it and write a plain text response
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 func (h *Handler) handleValidate(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +55,9 @@ func (h *Handler) handleValidate(w http.ResponseWriter, r *http.Request) {
 	result := h.emailService.ValidateEmail(req.Email)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		sendError(w, http.StatusInternalServerError, "Failed to encode response")
+	}
 }
 
 func (h *Handler) handleBatchValidate(w http.ResponseWriter, r *http.Request) {
@@ -68,7 +75,9 @@ func (h *Handler) handleBatchValidate(w http.ResponseWriter, r *http.Request) {
 	result := h.emailService.ValidateEmails(req.Emails)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		sendError(w, http.StatusInternalServerError, "Failed to encode response")
+	}
 }
 
 func (h *Handler) handleTypoSuggestions(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +95,9 @@ func (h *Handler) handleTypoSuggestions(w http.ResponseWriter, r *http.Request) 
 	result := h.emailService.GetTypoSuggestions(req.Email)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		sendError(w, http.StatusInternalServerError, "Failed to encode response")
+	}
 }
 
 func (h *Handler) handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -98,5 +109,7 @@ func (h *Handler) handleStatus(w http.ResponseWriter, r *http.Request) {
 	status := h.emailService.GetAPIStatus()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+	if err := json.NewEncoder(w).Encode(status); err != nil {
+		sendError(w, http.StatusInternalServerError, "Failed to encode response")
+	}
 }

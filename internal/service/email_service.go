@@ -1,3 +1,5 @@
+// Package service implements the core business logic of the email validator service.
+// It provides email validation, batch processing, and typo suggestion functionality.
 package service
 
 import (
@@ -122,7 +124,7 @@ func (s *EmailService) ValidateEmails(emails []string) model.BatchValidationResp
 	var wg sync.WaitGroup
 
 	// Determine number of workers (use min of emails count and available workers)
-	workerCount := min(s.workers, len(emails))
+	workerCount := minInt(s.workers, len(emails))
 	wg.Add(workerCount)
 
 	// Record goroutine metrics
@@ -187,8 +189,8 @@ func (s *EmailService) GetAPIStatus() model.APIStatus {
 	}
 }
 
-// min returns the minimum of two integers
-func min(a, b int) int {
+// minInt returns the minimum of two integers
+func minInt(a, b int) int {
 	if a < b {
 		return a
 	}

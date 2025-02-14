@@ -1,3 +1,5 @@
+// Package validator provides email validation functionality including syntax checking,
+// DNS validation, disposable email detection, and typo suggestion generation.
 package validator
 
 import (
@@ -32,7 +34,12 @@ func initDisposableDomains() map[string]struct{} {
 		log.Printf("Warning: Could not open disposable domains file from any location: %v", err)
 		return disposableDomains
 	}
-	defer file.Close()
+
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("Warning: Error closing disposable domains file: %v", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {

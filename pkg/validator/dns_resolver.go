@@ -16,6 +16,8 @@ type DefaultResolver struct {
 	timeout time.Duration
 }
 
+// LookupHost performs a DNS lookup for the given domain and returns a list of IP addresses.
+// It uses the system's default DNS resolver with the configured timeout.
 func (r *DefaultResolver) LookupHost(domain string) ([]string, error) {
 	resultChan := make(chan []string, 1)
 	errChan := make(chan error, 1)
@@ -39,6 +41,8 @@ func (r *DefaultResolver) LookupHost(domain string) ([]string, error) {
 	}
 }
 
+// LookupMX performs a DNS lookup for MX records of the given domain.
+// It returns a list of mail servers responsible for handling email for the domain.
 func (r *DefaultResolver) LookupMX(domain string) ([]*net.MX, error) {
 	resultChan := make(chan []*net.MX, 1)
 	errChan := make(chan error, 1)

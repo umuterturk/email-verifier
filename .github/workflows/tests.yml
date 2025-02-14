@@ -32,6 +32,10 @@ jobs:
         with:
           version: latest
           args: --timeout=5m
+          skip-cache: false
+          skip-pkg-cache: false
+          skip-build-cache: false
+          only-new-issues: true
 
       - name: Run tests
         run: |

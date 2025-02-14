@@ -1,14 +1,30 @@
 linters:
   enable:
-    - gofmt
-    - golint
-    - govet
-    - errcheck
-    - staticcheck
-    - gosimple
+    - gofmt        # Keep basic formatting
+    - govet        # Reports suspicious constructs
+    - errcheck     # Checks for unchecked errors
+    - staticcheck  # Advanced static analysis
+    - gosimple     # Simplifies code
+    - bodyclose    # Checks whether HTTP response bodies are closed
+    - gocritic     # Checks for performance optimizations
+    - gosec        # Security checks
+    - prealloc     # Suggests slice preallocation
+
+linters-settings:
+  gocritic:
+    enabled-tags:
+      - performance
+      - diagnostic
+    disabled-checks:
+      - commentedOutCode
+  gosec:
+    excludes:
+      - G104  # Duplicate of errcheck
 
 run:
-  deadline: 5m
+  timeout: 5m
 
 issues:
-  exclude-use-default: false 
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0 

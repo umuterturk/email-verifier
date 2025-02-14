@@ -1,8 +1,11 @@
+// Package main is the entry point for the email validator service.
+// It initializes and starts the HTTP server, sets up monitoring, and manages the service lifecycle.
 package main
 
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"emailvalidator/internal/api"
 	"emailvalidator/internal/service"
@@ -31,7 +34,16 @@ func main() {
 	log.Printf("Starting server on %s", port)
 	log.Printf("Metrics available at http://localhost%s/metrics", port)
 
-	if err := http.ListenAndServe(port, monitoredHandler); err != nil {
+	srv := &http.Server{
+		Addr:              port,
+		Handler:           monitoredHandler,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
+	}
+
+	if err := srv.ListenAndServe(); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }

@@ -162,7 +162,11 @@ func validateSingle(t *testing.T, email string) int {
 		t.Logf("Failed to validate email: %v", err)
 		return http.StatusInternalServerError
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Logf("Error closing response body: %v", err)
+		}
+	}()
 	return resp.StatusCode
 }
 
@@ -175,7 +179,11 @@ func validateBatch(t *testing.T, emails []string) int {
 		t.Logf("Failed to validate batch: %v", err)
 		return http.StatusInternalServerError
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Logf("Error closing response body: %v", err)
+		}
+	}()
 	return resp.StatusCode
 }
 
@@ -188,7 +196,11 @@ func getTypoSuggestions(t *testing.T, email string) int {
 		t.Logf("Failed to get typo suggestions: %v", err)
 		return http.StatusInternalServerError
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Logf("Error closing response body: %v", err)
+		}
+	}()
 	return resp.StatusCode
 }
 
@@ -198,6 +210,10 @@ func getStatus(t *testing.T) int {
 		t.Logf("Failed to get status: %v", err)
 		return http.StatusInternalServerError
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Logf("Error closing response body: %v", err)
+		}
+	}()
 	return resp.StatusCode
 }

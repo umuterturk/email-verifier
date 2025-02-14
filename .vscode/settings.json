@@ -9,5 +9,9 @@
         "editor.snippetSuggestions": "none"
     },
     "go.lintTool": "golangci-lint",
-    "go.lintOnSave": "package"
+    "go.lintOnSave": "package",
+    "go.lintFlags": [
+        "--fast",
+        "--config=${workspaceFolder}/.golangci.yml"
+    ]
 } 

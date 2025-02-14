@@ -32,8 +32,12 @@ func setupTestServer(t *testing.T) *testServer {
 	// Find available port
 	port := 8081
 	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: mux,
+		Addr:              fmt.Sprintf(":%d", port),
+		Handler:           mux,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
 	}
 
 	// Start server in a goroutine
@@ -65,7 +69,11 @@ func TestEndToEndEmailValidation(t *testing.T) {
 	}
 
 	server := setupTestServer(t)
-	defer server.cleanup()
+	defer func() {
+		if err := server.cleanup(); err != nil {
+			t.Errorf("Failed to cleanup test server: %v", err)
+		}
+	}()
 
 	t.Run("Complete validation workflow", func(t *testing.T) {
 		// Step 1: Validate a single valid email
@@ -78,7 +86,11 @@ func TestEndToEndEmailValidation(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Errorf("Failed to close response body: %v", err)
+			}
+		}()
 
 		var result model.EmailValidationResponse
 		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -107,7 +119,11 @@ func TestEndToEndEmailValidation(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to make batch request: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Errorf("Failed to close response body: %v", err)
+			}
+		}()
 
 		var batchResult model.BatchValidationResponse
 		if err := json.NewDecoder(resp.Body).Decode(&batchResult); err != nil {
@@ -129,7 +145,11 @@ func TestEndToEndEmailValidation(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to make typo suggestion request: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Errorf("Failed to close response body: %v", err)
+			}
+		}()
 
 		var typoResult model.TypoSuggestionResponse
 		if err := json.NewDecoder(resp.Body).Decode(&typoResult); err != nil {
@@ -146,7 +166,11 @@ func TestEndToEndEmailValidation(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to get status: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Errorf("Failed to close response body: %v", err)
+			}
+		}()
 
 		var statusResult model.APIStatus
 		if err := json.NewDecoder(resp.Body).Decode(&statusResult); err != nil {
@@ -169,7 +193,11 @@ func TestErrorScenarios(t *testing.T) {
 	}
 
 	server := setupTestServer(t)
-	defer server.cleanup()
+	defer func() {
+		if err := server.cleanup(); err != nil {
+			t.Errorf("Failed to cleanup test server: %v", err)
+		}
+	}()
 
 	tests := []struct {
 		name           string
@@ -230,7 +258,11 @@ func TestErrorScenarios(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Request failed: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					t.Errorf("Failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode != tt.wantStatus {
 				t.Errorf("got status %d, want %d", resp.StatusCode, tt.wantStatus)
@@ -275,7 +307,11 @@ func TestConcurrentRequests(t *testing.T) {
 	}
 
 	server := setupTestServer(t)
-	defer server.cleanup()
+	defer func() {
+		if err := server.cleanup(); err != nil {
+			t.Errorf("Failed to cleanup test server: %v", err)
+		}
+	}()
 
 	// Number of concurrent requests to make
 	concurrentRequests := 10
@@ -295,7 +331,11 @@ func TestConcurrentRequests(t *testing.T) {
 				results <- fmt.Errorf("request failed: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					t.Errorf("Failed to close response body: %v", err)
+				}
+			}()
 
 			var result model.EmailValidationResponse
 			if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -324,7 +364,11 @@ func TestConcurrentRequests(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get status: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Errorf("Failed to close response body: %v", err)
+		}
+	}()
 
 	var status model.APIStatus
 	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {

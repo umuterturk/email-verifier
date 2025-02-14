@@ -17,4 +17,4 @@ func NewSyntaxValidator() *SyntaxValidator {
 // Validate checks if the email address format is valid
 func (v *SyntaxValidator) Validate(email string) bool {
 	return v.emailRegex.MatchString(email)
-} 
+}

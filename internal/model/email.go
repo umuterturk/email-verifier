@@ -1,3 +1,5 @@
+// Package model provides the data structures and types used throughout the email validator service.
+// It defines the request/response models for the API endpoints and internal data representations.
 package model
 
 // ValidationResults represents the results of various email validation checks
