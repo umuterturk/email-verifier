@@ -2,6 +2,28 @@
 // It defines the request/response models for the API endpoints and internal data representations.
 package model
 
+// ValidationStatus represents the status of email validation
+type ValidationStatus string
+
+const (
+	// ValidationStatusValid indicates the email is valid and deliverable
+	ValidationStatusValid ValidationStatus = "VALID"
+	// ValidationStatusProbablyValid indicates the email is probably valid but has some issues
+	ValidationStatusProbablyValid ValidationStatus = "PROBABLY_VALID"
+	// ValidationStatusInvalid indicates the email has significant validation issues
+	ValidationStatusInvalid ValidationStatus = "INVALID"
+	// ValidationStatusMissingEmail indicates no email was provided
+	ValidationStatusMissingEmail ValidationStatus = "MISSING_EMAIL"
+	// ValidationStatusInvalidFormat indicates invalid email format
+	ValidationStatusInvalidFormat ValidationStatus = "INVALID_FORMAT"
+	// ValidationStatusInvalidDomain indicates the domain does not exist
+	ValidationStatusInvalidDomain ValidationStatus = "INVALID_DOMAIN"
+	// ValidationStatusNoMXRecords indicates the domain cannot receive emails
+	ValidationStatusNoMXRecords ValidationStatus = "NO_MX_RECORDS"
+	// ValidationStatusDisposable indicates a disposable email address
+	ValidationStatusDisposable ValidationStatus = "DISPOSABLE"
+)
+
 // ValidationResults represents the results of various email validation checks
 type ValidationResults struct {
 	Syntax        bool `json:"syntax"`
@@ -22,7 +44,7 @@ type EmailValidationResponse struct {
 	Email       string            `json:"email"`
 	Validations ValidationResults `json:"validations"`
 	Score       int               `json:"score"`
-	Message     string            `json:"message"`
+	Status      ValidationStatus  `json:"status"`
 }
 
 // BatchValidationRequest represents a request to validate multiple emails

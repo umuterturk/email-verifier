@@ -41,14 +41,14 @@ func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse
 	}
 
 	if email == "" {
-		response.Message = "Email address is required"
+		response.Status = model.ValidationStatusMissingEmail
 		return response
 	}
 
 	// Split email into local part and domain
 	parts := strings.Split(email, "@")
 	if len(parts) != 2 {
-		response.Message = "Invalid email format"
+		response.Status = model.ValidationStatusInvalidFormat
 		return response
 	}
 	domain := parts[1]
@@ -56,7 +56,7 @@ func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse
 	// Perform all validations
 	response.Validations.Syntax = s.validator.ValidateSyntax(email)
 	if !response.Validations.Syntax {
-		response.Message = "Invalid email format"
+		response.Status = model.ValidationStatusInvalidFormat
 		return response
 	}
 
@@ -83,20 +83,20 @@ func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse
 	// Record validation score
 	monitoring.RecordValidationScore("overall", float64(response.Score))
 
-	// Set appropriate message based on validations
+	// Set appropriate status based on validations
 	switch {
 	case !response.Validations.DomainExists:
-		response.Message = "Domain does not exist"
+		response.Status = model.ValidationStatusInvalidDomain
 	case !response.Validations.MXRecords:
-		response.Message = "Domain cannot receive emails"
+		response.Status = model.ValidationStatusNoMXRecords
 	case response.Validations.IsDisposable:
-		response.Message = "Disposable email address detected"
+		response.Status = model.ValidationStatusDisposable
 	case response.Score >= 90:
-		response.Message = "Email is valid and deliverable"
+		response.Status = model.ValidationStatusValid
 	case response.Score >= 70:
-		response.Message = "Email is probably valid but has some issues"
+		response.Status = model.ValidationStatusProbablyValid
 	default:
-		response.Message = "Email has significant validation issues"
+		response.Status = model.ValidationStatusInvalid
 	}
 
 	return response

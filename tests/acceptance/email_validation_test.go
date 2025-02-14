@@ -222,12 +222,13 @@ func TestErrorScenarios(t *testing.T) {
 	}()
 
 	tests := []struct {
-		name           string
-		endpoint       string
-		method         string
-		body           string
-		wantStatus     int
-		wantErrorMatch string
+		name                 string
+		endpoint             string
+		method               string
+		body                 string
+		wantStatus           int
+		wantErrorMatch       string
+		wantValidationStatus model.ValidationStatus
 	}{
 		{
 			name:           "Invalid JSON",
@@ -254,12 +255,13 @@ func TestErrorScenarios(t *testing.T) {
 			wantErrorMatch: "Email parameter is required",
 		},
 		{
-			name:           "Empty email",
-			endpoint:       "/validate",
-			method:         http.MethodPost,
-			body:           `{"email": ""}`,
-			wantStatus:     http.StatusOK,
-			wantErrorMatch: "", // Not an error response, but a valid response with a message
+			name:                 "Empty email",
+			endpoint:             "/validate",
+			method:               http.MethodPost,
+			body:                 `{"email": ""}`,
+			wantStatus:           http.StatusOK,
+			wantErrorMatch:       "",
+			wantValidationStatus: model.ValidationStatusMissingEmail,
 		},
 		{
 			name:           "Empty batch request",
@@ -319,7 +321,7 @@ func TestErrorScenarios(t *testing.T) {
 					t.Errorf("got error message %q, want %q", msg, tt.wantErrorMatch)
 				}
 			} else if tt.endpoint == "/validate" && tt.method == http.MethodPost {
-				// For validation responses, check the message field
+				// For validation responses, check the validation status
 				var validationResp model.EmailValidationResponse
 				if err := json.Unmarshal(body, &validationResp); err != nil {
 					t.Fatalf("Failed to decode validation response: %v", err)
@@ -327,8 +329,8 @@ func TestErrorScenarios(t *testing.T) {
 				if validationResp.Email != "" {
 					t.Errorf("Expected empty email to be preserved, got %q", validationResp.Email)
 				}
-				if validationResp.Message != "Email address is required" {
-					t.Errorf("got message %q, want %q", validationResp.Message, "Email address is required")
+				if tt.wantValidationStatus != "" && validationResp.Status != tt.wantValidationStatus {
+					t.Errorf("got validation status %q, want %q", validationResp.Status, tt.wantValidationStatus)
 				}
 			}
 		})

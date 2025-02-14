@@ -1,6 +1,7 @@
 package service
 
 import (
+	"emailvalidator/internal/model"
 	"fmt"
 	"testing"
 	"time"
@@ -13,21 +14,21 @@ func TestValidateEmail(t *testing.T) {
 		wantScore     int
 		wantSyntax    bool
 		wantRoleBased bool
-		wantMessage   string
+		wantStatus    model.ValidationStatus
 	}{
 		{
-			name:        "Valid email",
-			email:       "user@example.com",
-			wantScore:   100,
-			wantSyntax:  true,
-			wantMessage: "Email is valid and deliverable",
+			name:       "Valid email",
+			email:      "user@example.com",
+			wantScore:  100,
+			wantSyntax: true,
+			wantStatus: model.ValidationStatusValid,
 		},
 		{
-			name:        "Invalid email format",
-			email:       "invalid-email",
-			wantScore:   0,
-			wantSyntax:  false,
-			wantMessage: "Invalid email format",
+			name:       "Invalid email format",
+			email:      "invalid-email",
+			wantScore:  0,
+			wantSyntax: false,
+			wantStatus: model.ValidationStatusInvalidFormat,
 		},
 		{
 			name:          "Role-based email",
@@ -35,14 +36,14 @@ func TestValidateEmail(t *testing.T) {
 			wantScore:     90,
 			wantSyntax:    true,
 			wantRoleBased: true,
-			wantMessage:   "Email is valid and deliverable",
+			wantStatus:    model.ValidationStatusValid,
 		},
 		{
-			name:        "Empty email",
-			email:       "",
-			wantScore:   0,
-			wantSyntax:  false,
-			wantMessage: "Email address is required",
+			name:       "Empty email",
+			email:      "",
+			wantScore:  0,
+			wantSyntax: false,
+			wantStatus: model.ValidationStatusMissingEmail,
 		},
 	}
 
@@ -61,8 +62,8 @@ func TestValidateEmail(t *testing.T) {
 			if result.Validations.IsRoleBased != tt.wantRoleBased {
 				t.Errorf("IsRoleBased = %v, want %v", result.Validations.IsRoleBased, tt.wantRoleBased)
 			}
-			if result.Message != tt.wantMessage {
-				t.Errorf("Message = %q, want %q", result.Message, tt.wantMessage)
+			if result.Status != tt.wantStatus {
+				t.Errorf("Status = %q, want %q", result.Status, tt.wantStatus)
 			}
 		})
 	}
