@@ -45,9 +45,22 @@ func TestHandleValidate(t *testing.T) {
 			wantScore:  0,
 		},
 		{
-			name:       "Method not allowed",
+			name:       "Valid email GET",
 			email:      "user@example.com",
 			method:     http.MethodGet,
+			wantStatus: http.StatusOK,
+			wantScore:  100,
+		},
+		{
+			name:       "Missing email parameter GET",
+			email:      "",
+			method:     http.MethodGet,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "Method not allowed",
+			email:      "user@example.com",
+			method:     http.MethodPut,
 			wantStatus: http.StatusMethodNotAllowed,
 		},
 	}
@@ -57,12 +70,28 @@ func TestHandleValidate(t *testing.T) {
 			var resp *http.Response
 			var err error
 
-			if tt.method == http.MethodPost {
+			switch tt.method {
+			case http.MethodPost:
 				reqBody := model.EmailValidationRequest{Email: tt.email}
 				jsonBody, _ := json.Marshal(reqBody)
 				resp, err = http.Post(server.URL+"/validate", "application/json", bytes.NewBuffer(jsonBody))
-			} else {
-				resp, err = http.Get(server.URL + "/validate")
+			case http.MethodGet:
+				req, reqErr := http.NewRequest(http.MethodGet, server.URL+"/validate", nil)
+				if reqErr != nil {
+					t.Fatalf("Failed to create request: %v", reqErr)
+				}
+				if tt.email != "" {
+					q := req.URL.Query()
+					q.Add("email", tt.email)
+					req.URL.RawQuery = q.Encode()
+				}
+				resp, err = http.DefaultClient.Do(req)
+			default:
+				req, reqErr := http.NewRequest(tt.method, server.URL+"/validate", nil)
+				if reqErr != nil {
+					t.Fatalf("Failed to create request: %v", reqErr)
+				}
+				resp, err = http.DefaultClient.Do(req)
 			}
 
 			if err != nil {
@@ -78,7 +107,7 @@ func TestHandleValidate(t *testing.T) {
 				t.Errorf("got status %d, want %d", resp.StatusCode, tt.wantStatus)
 			}
 
-			if tt.method == http.MethodPost && resp.StatusCode == http.StatusOK {
+			if (tt.method == http.MethodPost || tt.method == http.MethodGet) && resp.StatusCode == http.StatusOK {
 				var result model.EmailValidationResponse
 				if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 					t.Fatalf("Failed to decode response: %v", err)

@@ -581,4 +581,199 @@ curl http://localhost:8080/status
 
 ## License
 
-MIT License - see LICENSE file for details 
+MIT License - see LICENSE file for details
+
+### 4. Install golangci-lint
+
+golangci-lint is used for code quality checks in this project. It runs multiple linters concurrently and has integrations with popular editors.
+
+#### macOS
+```bash
+# Using Homebrew
+brew install golangci-lint
+
+# Verify installation
+golangci-lint --version
+```
+
+#### Linux and Windows
+```bash
+# Binary installation
+curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
+
+# Verify installation
+golangci-lint --version
+```
+
+## Code Quality
+
+### Running the Linter
+
+The project uses golangci-lint for code quality checks. To run the linter:
+
+```bash
+# Run all linters
+golangci-lint run
+
+# Run specific linters
+golangci-lint run --disable-all -E errcheck,gosimple,govet,ineffassign,staticcheck,typecheck,unused
+
+# Run linters with auto-fix
+golangci-lint run --fix
+```
+
+### Common Linting Issues and Solutions
+
+1. **G107: Potential HTTP request made with variable url**
+   ```go
+   // Incorrect
+   resp, err := http.Get(url)
+
+   // Correct
+   req, err := http.NewRequest(http.MethodGet, url, nil)
+   if err != nil {
+       return err
+   }
+   resp, err := http.DefaultClient.Do(req)
+   ```
+
+2. **ineffectual assignment to err**
+   ```go
+   // Incorrect
+   req, err := http.NewRequest("GET", url, nil)
+   resp, err = client.Do(req)  // err from NewRequest is lost
+
+   // Correct
+   req, reqErr := http.NewRequest("GET", url, nil)
+   if reqErr != nil {
+       return reqErr
+   }
+   resp, err = client.Do(req)
+   ```
+
+3. **unused variable/parameter**
+   ```go
+   // Incorrect
+   func process(ctx context.Context, data string) error {
+       return nil  // ctx is unused
+   }
+
+   // Correct
+   func process(_ context.Context, data string) error {
+       return nil
+   }
+   ```
+
+### CI/CD Integration
+
+The linter is integrated into our CI/CD pipeline in `.github/workflows/tests.yml`:
+
+```yaml
+- name: Run linter
+  uses: golangci/golangci-lint-action@v4
+  with:
+    version: latest
+    args: --timeout=5m
+    skip-cache: false
+    skip-pkg-cache: false
+    skip-build-cache: false
+    only-new-issues: true
+```
+
+### Pre-commit Hook Setup
+
+1. Create `.git/hooks/pre-commit`:
+```bash
+#!/bin/sh
+# Run golangci-lint before commit
+golangci-lint run
+
+# Check the exit code
+if [ $? -ne 0 ]; then
+    echo "Linting failed! Please fix the issues before committing."
+    exit 1
+fi
+```
+
+2. Make it executable:
+```bash
+chmod +x .git/hooks/pre-commit
+```
+
+### Project-specific Linting Rules
+
+Our `.golangci.yml` enforces:
+
+1. **Enabled Linters**
+   - `errcheck`: Find unchecked errors
+   - `gosimple`: Simplify code
+   - `govet`: Report suspicious code
+   - `ineffassign`: Detect ineffectual assignments
+   - `staticcheck`: State of the art checks
+   - `typecheck`: Type-checking
+   - `unused`: Find unused code
+
+2. **Custom Rules**
+   ```yaml
+   linters-settings:
+     govet:
+       check-shadowing: true
+     errcheck:
+       check-type-assertions: true
+     gosimple:
+       checks: ["all"]
+     staticcheck:
+       checks: ["all"]
+   ```
+
+3. **Ignored Issues**
+   - `EXC0001`: Complexity checks for test files
+   - `ST1000`: Package comment style
+
+### Editor Integration
+
+#### VS Code
+```json
+{
+    "go.lintTool": "golangci-lint",
+    "go.lintFlags": ["--fast"],
+    "go.lintOnSave": "package"
+}
+```
+
+#### GoLand
+1. Go to Settings → Go → Go Linter
+2. Select 'golangci-lint'
+3. Set "--fast" in "Arguments"
+
+#### Vim/Neovim
+Add to your config:
+```vim
+let g:go_metalinter_command = "golangci-lint"
+let g:go_metalinter_autosave = 1
+```
+
+### Troubleshooting Linter Issues
+
+1. **Linter is too slow**
+   ```bash
+   # Use fast mode
+   golangci-lint run --fast
+
+   # Run only on changed files
+   golangci-lint run --new-from-rev=HEAD~1
+   ```
+
+2. **Memory issues**
+   ```bash
+   # Limit memory usage
+   GOGC=50 golangci-lint run
+   ```
+
+3. **Cache issues**
+   ```bash
+   # Clear cache
+   golangci-lint cache clean
+   ```
+
+To modify linter settings, edit the `.golangci.yml` file in the project root. 

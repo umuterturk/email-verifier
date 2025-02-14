@@ -41,14 +41,23 @@ func sendError(w http.ResponseWriter, status int, message string) {
 }
 
 func (h *Handler) handleValidate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
-	}
-
 	var req model.EmailValidationRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendError(w, http.StatusBadRequest, "Invalid request body")
+
+	switch r.Method {
+	case http.MethodGet:
+		email := r.URL.Query().Get("email")
+		if email == "" {
+			sendError(w, http.StatusBadRequest, "Email parameter is required")
+			return
+		}
+		req.Email = email
+	case http.MethodPost:
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			sendError(w, http.StatusBadRequest, "Invalid request body")
+			return
+		}
+	default:
+		sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -61,14 +70,23 @@ func (h *Handler) handleValidate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleBatchValidate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
-	}
-
 	var req model.BatchValidationRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendError(w, http.StatusBadRequest, "Invalid request body")
+
+	switch r.Method {
+	case http.MethodGet:
+		emails := r.URL.Query()["email"]
+		if len(emails) == 0 {
+			sendError(w, http.StatusBadRequest, "At least one email parameter is required")
+			return
+		}
+		req.Emails = emails
+	case http.MethodPost:
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			sendError(w, http.StatusBadRequest, "Invalid request body")
+			return
+		}
+	default:
+		sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -81,14 +99,23 @@ func (h *Handler) handleBatchValidate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleTypoSuggestions(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
-	}
-
 	var req model.TypoSuggestionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendError(w, http.StatusBadRequest, "Invalid request body")
+
+	switch r.Method {
+	case http.MethodGet:
+		email := r.URL.Query().Get("email")
+		if email == "" {
+			sendError(w, http.StatusBadRequest, "Email parameter is required")
+			return
+		}
+		req.Email = email
+	case http.MethodPost:
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			sendError(w, http.StatusBadRequest, "Invalid request body")
+			return
+		}
+	default:
+		sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 

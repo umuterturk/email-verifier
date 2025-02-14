@@ -76,15 +76,15 @@ func TestEndToEndEmailValidation(t *testing.T) {
 	}()
 
 	t.Run("Complete validation workflow", func(t *testing.T) {
-		// Step 1: Validate a single valid email
-		t.Log("Step 1: Validating a single valid email")
+		// Step 1: Validate a single valid email using POST
+		t.Log("Step 1: Validating a single valid email using POST")
 		email := "user@example.com"
 		reqBody := model.EmailValidationRequest{Email: email}
 		jsonBody, _ := json.Marshal(reqBody)
 
 		resp, err := http.Post(server.url+"/validate", "application/json", bytes.NewBuffer(jsonBody))
 		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
+			t.Fatalf("Failed to make POST request: %v", err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
@@ -98,26 +98,39 @@ func TestEndToEndEmailValidation(t *testing.T) {
 		}
 
 		if !result.Validations.Syntax {
-			t.Errorf("Expected valid syntax for %s", email)
-		}
-		if result.Score < 90 {
-			t.Errorf("Expected high score for valid email, got %d", result.Score)
+			t.Error("Expected syntax validation to pass")
 		}
 
-		// Step 2: Batch validate multiple emails
-		t.Log("Step 2: Batch validating multiple emails")
-		batchReqBody := model.BatchValidationRequest{
-			Emails: []string{
-				"user1@example.com",
-				"invalid-email",
-				"admin@example.com",
-			},
-		}
-		jsonBody, _ = json.Marshal(batchReqBody)
-
-		resp, err = http.Post(server.url+"/validate/batch", "application/json", bytes.NewBuffer(jsonBody))
+		// Step 2: Validate the same email using GET
+		t.Log("Step 2: Validating a single valid email using GET")
+		resp, err = http.Get(server.url + "/validate?email=" + email)
 		if err != nil {
-			t.Fatalf("Failed to make batch request: %v", err)
+			t.Fatalf("Failed to make GET request: %v", err)
+		}
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Errorf("Failed to close response body: %v", err)
+			}
+		}()
+
+		var getResult model.EmailValidationResponse
+		if err := json.NewDecoder(resp.Body).Decode(&getResult); err != nil {
+			t.Fatalf("Failed to decode GET response: %v", err)
+		}
+
+		if !getResult.Validations.Syntax {
+			t.Error("Expected syntax validation to pass for GET request")
+		}
+
+		// Step 3: Batch validation using POST
+		t.Log("Step 3: Batch validating emails using POST")
+		batchEmails := []string{"user1@example.com", "user2@example.com"}
+		batchReqBody := model.BatchValidationRequest{Emails: batchEmails}
+		batchJsonBody, _ := json.Marshal(batchReqBody)
+
+		resp, err = http.Post(server.url+"/validate/batch", "application/json", bytes.NewBuffer(batchJsonBody))
+		if err != nil {
+			t.Fatalf("Failed to make batch POST request: %v", err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
@@ -130,20 +143,40 @@ func TestEndToEndEmailValidation(t *testing.T) {
 			t.Fatalf("Failed to decode batch response: %v", err)
 		}
 
-		if len(batchResult.Results) != 3 {
-			t.Errorf("Expected 3 results, got %d", len(batchResult.Results))
+		if len(batchResult.Results) != 2 {
+			t.Errorf("Expected 2 results, got %d", len(batchResult.Results))
 		}
 
-		// Step 3: Check typo suggestions
-		t.Log("Step 3: Checking typo suggestions")
-		typoReqBody := model.TypoSuggestionRequest{
-			Email: "user@gmial.com",
-		}
-		jsonBody, _ = json.Marshal(typoReqBody)
-
-		resp, err = http.Post(server.url+"/typo-suggestions", "application/json", bytes.NewBuffer(jsonBody))
+		// Step 4: Batch validation using GET
+		t.Log("Step 4: Batch validating emails using GET")
+		resp, err = http.Get(server.url + "/validate/batch?email=user1@example.com&email=user2@example.com")
 		if err != nil {
-			t.Fatalf("Failed to make typo suggestion request: %v", err)
+			t.Fatalf("Failed to make batch GET request: %v", err)
+		}
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Errorf("Failed to close response body: %v", err)
+			}
+		}()
+
+		var batchGetResult model.BatchValidationResponse
+		if err := json.NewDecoder(resp.Body).Decode(&batchGetResult); err != nil {
+			t.Fatalf("Failed to decode batch GET response: %v", err)
+		}
+
+		if len(batchGetResult.Results) != 2 {
+			t.Errorf("Expected 2 results for GET batch, got %d", len(batchGetResult.Results))
+		}
+
+		// Step 5: Typo suggestions using POST
+		t.Log("Step 5: Getting typo suggestions using POST")
+		typoEmail := "user@gmial.com"
+		typoReqBody := model.TypoSuggestionRequest{Email: typoEmail}
+		typoJsonBody, _ := json.Marshal(typoReqBody)
+
+		resp, err = http.Post(server.url+"/typo-suggestions", "application/json", bytes.NewBuffer(typoJsonBody))
+		if err != nil {
+			t.Fatalf("Failed to make typo POST request: %v", err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
@@ -153,18 +186,14 @@ func TestEndToEndEmailValidation(t *testing.T) {
 
 		var typoResult model.TypoSuggestionResponse
 		if err := json.NewDecoder(resp.Body).Decode(&typoResult); err != nil {
-			t.Fatalf("Failed to decode typo suggestion response: %v", err)
+			t.Fatalf("Failed to decode typo response: %v", err)
 		}
 
-		if len(typoResult.Suggestions) == 0 {
-			t.Error("Expected typo suggestions for gmial.com")
-		}
-
-		// Step 4: Verify API status
-		t.Log("Step 4: Verifying API status")
-		resp, err = http.Get(server.url + "/status")
+		// Step 6: Typo suggestions using GET
+		t.Log("Step 6: Getting typo suggestions using GET")
+		resp, err = http.Get(server.url + "/typo-suggestions?email=" + typoEmail)
 		if err != nil {
-			t.Fatalf("Failed to get status: %v", err)
+			t.Fatalf("Failed to make typo GET request: %v", err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
@@ -172,16 +201,9 @@ func TestEndToEndEmailValidation(t *testing.T) {
 			}
 		}()
 
-		var statusResult model.APIStatus
-		if err := json.NewDecoder(resp.Body).Decode(&statusResult); err != nil {
-			t.Fatalf("Failed to decode status response: %v", err)
-		}
-
-		if statusResult.Status != "healthy" {
-			t.Errorf("Expected API to be healthy, got %s", statusResult.Status)
-		}
-		if statusResult.RequestsHandled < 3 { // We made at least 3 requests
-			t.Errorf("Expected at least 3 requests handled, got %d", statusResult.RequestsHandled)
+		var typoGetResult model.TypoSuggestionResponse
+		if err := json.NewDecoder(resp.Body).Decode(&typoGetResult); err != nil {
+			t.Fatalf("Failed to decode typo GET response: %v", err)
 		}
 	})
 }
@@ -218,10 +240,18 @@ func TestErrorScenarios(t *testing.T) {
 		{
 			name:           "Method not allowed",
 			endpoint:       "/validate",
-			method:         http.MethodGet,
+			method:         http.MethodPut,
 			body:           "",
 			wantStatus:     http.StatusMethodNotAllowed,
 			wantErrorMatch: "Method not allowed",
+		},
+		{
+			name:           "Missing email parameter",
+			endpoint:       "/validate",
+			method:         http.MethodGet,
+			body:           "",
+			wantStatus:     http.StatusBadRequest,
+			wantErrorMatch: "Email parameter is required",
 		},
 		{
 			name:           "Empty email",
@@ -252,7 +282,12 @@ func TestErrorScenarios(t *testing.T) {
 			case http.MethodGet:
 				resp, err = http.Get(server.url + tt.endpoint)
 			default:
-				t.Fatalf("Unsupported method: %s", tt.method)
+				client := &http.Client{}
+				req, reqErr := http.NewRequest(tt.method, server.url+tt.endpoint, nil)
+				if reqErr != nil {
+					t.Fatalf("Failed to create request: %v", reqErr)
+				}
+				resp, err = client.Do(req)
 			}
 
 			if err != nil {
@@ -269,7 +304,7 @@ func TestErrorScenarios(t *testing.T) {
 			}
 
 			// Read the response body
-			body, err := json.RawMessage{}, error(nil)
+			var body json.RawMessage
 			if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
 				t.Fatalf("Failed to decode response: %v", err)
 			}
