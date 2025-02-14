@@ -26,6 +26,24 @@ print_header() {
     echo -e "\n${BLUE}=== $1 ===${NC}\n"
 }
 
+# Function to check response against expected status
+check_response() {
+    local response=$1
+    local expected_status=$2
+    local description=$3
+    
+    # Extract the status field from the JSON response
+    local actual_status=$(echo "$response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+    
+    if [ -n "$expected_status" ]; then
+        if [ "$actual_status" = "$expected_status" ]; then
+            echo -e "${GREEN}✓ $description - Status: $actual_status${NC}"
+        else
+            echo -e "${RED}✗ $description - Expected: $expected_status, Got: $actual_status${NC}"
+        fi
+    fi
+}
+
 # Function to get endpoint type index
 get_endpoint_index() {
     local type=$1
@@ -42,6 +60,7 @@ test_endpoint() {
     local description=$1
     local command=$2
     local endpoint_type=$3
+    local expected_status=$4
     
     echo -e "${BLUE}Testing: ${description}${NC}"
     echo -e "${BLUE}Command: ${command}${NC}"
@@ -56,6 +75,11 @@ test_endpoint() {
     local time=$(echo "$output" | grep "Time:" | cut -d' ' -f2 | sed 's/s//')
     echo "$output"
     
+    # Check response against expected status
+    if [ -n "$expected_status" ]; then
+        check_response "$output" "$expected_status" "$description"
+    fi
+    
     # Store timing data
     local idx=$(get_endpoint_index "$endpoint_type")
     times[$idx]=$(echo "${times[$idx]} + $time" | bc)
@@ -68,27 +92,32 @@ print_header "Single Email Validation Tests"
 # Valid email - POST
 test_endpoint "Valid email (POST)" \
 'curl -X POST "${API_URL}/validate" -H "Content-Type: application/json" -d "{\"email\":\"user@example.com\"}"' \
-"single_validation"
+"single_validation" \
+"VALID"
 
 # Valid email - GET
 test_endpoint "Valid email (GET)" \
 "curl -X GET \"${API_URL}/validate?email=user@example.com\"" \
-"single_validation"
+"single_validation" \
+"VALID"
 
 # Invalid email format - POST
 test_endpoint "Invalid email format (POST)" \
 'curl -X POST "${API_URL}/validate" -H "Content-Type: application/json" -d "{\"email\":\"invalid-email\"}"' \
-"single_validation"
+"single_validation" \
+"INVALID_FORMAT"
 
 # Invalid email format - GET
 test_endpoint "Invalid email format (GET)" \
 "curl -X GET \"${API_URL}/validate?email=invalid-email\"" \
-"single_validation"
+"single_validation" \
+"INVALID_FORMAT"
 
 # Empty email - POST
 test_endpoint "Empty email (POST)" \
 'curl -X POST "${API_URL}/validate" -H "Content-Type: application/json" -d "{\"email\":\"\"}"' \
-"single_validation"
+"single_validation" \
+"MISSING_EMAIL"
 
 # Missing email parameter - GET
 test_endpoint "Missing email parameter (GET)" \
@@ -147,17 +176,20 @@ print_header "Special Cases"
 # Disposable email - POST
 test_endpoint "Disposable email (POST)" \
 'curl -X POST "${API_URL}/validate" -H "Content-Type: application/json" -d "{\"email\":\"user@tempmail.com\"}"' \
-"special_cases"
+"special_cases" \
+"DISPOSABLE"
 
 # Role-based email - POST
 test_endpoint "Role-based email (POST)" \
 'curl -X POST "${API_URL}/validate" -H "Content-Type: application/json" -d "{\"email\":\"admin@example.com\"}"' \
-"special_cases"
+"special_cases" \
+"VALID"
 
 # Non-existent domain - POST
 test_endpoint "Non-existent domain (POST)" \
 'curl -X POST "${API_URL}/validate" -H "Content-Type: application/json" -d "{\"email\":\"user@nonexistentdomain123456.com\"}"' \
-"special_cases"
+"special_cases" \
+"INVALID_DOMAIN"
 
 # 5. Error Cases
 print_header "Error Cases"
