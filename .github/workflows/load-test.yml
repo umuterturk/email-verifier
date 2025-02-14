@@ -1,0 +1,96 @@
+name: Load Testing
+
+on:
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      duration:
+        description: 'Test duration in seconds'
+        required: true
+        default: '30'
+      concurrent-users:
+        description: 'Number of concurrent users'
+        required: true
+        default: '10'
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday at midnight
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    services:
+      prometheus:
+        image: prom/prometheus:latest
+        ports:
+          - 9090:9090
+        volumes:
+          - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      grafana:
+        image: grafana/grafana:latest
+        ports:
+          - 3000:3000
+        env:
+          GF_SECURITY_ADMIN_PASSWORD: admin
+          GF_USERS_ALLOW_SIGN_UP: 'false'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Build application
+        run: go build -v ./...
+
+      - name: Start application
+        run: |
+          ./emailvalidator &
+          sleep 5  # Wait for app to start
+
+      - name: Run load test
+        run: |
+          go test ./test -v -run TestLoadGeneration \
+            -duration ${{ github.event.inputs.duration || '30' }}s \
+            -short=false
+
+      - name: Collect metrics
+        run: |
+          curl -o metrics.json http://localhost:9090/api/v1/query_range \
+            -d 'query=email_validator_requests_total' \
+            -d "start=$(date -d '1 hour ago' +%s)" \
+            -d "end=$(date +%s)" \
+            -d 'step=15s'
+
+      - name: Generate load test report
+        run: |
+          echo "## Load Test Report" > report.md
+          echo "### Test Parameters" >> report.md
+          echo "- Duration: ${{ github.event.inputs.duration || '30' }} seconds" >> report.md
+          echo "- Concurrent Users: ${{ github.event.inputs.concurrent-users || '10' }}" >> report.md
+          echo "### Results" >> report.md
+          echo "\`\`\`" >> report.md
+          jq -r '.data.result[] | "Endpoint: \(.metric.endpoint)\nTotal Requests: \(.values | length)\nAverage Rate: \(.values | map(.[1] | tonumber) | add / length)"' metrics.json >> report.md
+          echo "\`\`\`" >> report.md
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: load-test-results
+          path: |
+            metrics.json
+            report.md
+
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('report.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            }); 

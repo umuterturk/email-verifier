@@ -1,0 +1,82 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+emailvalidator
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+*.cov
+coverage.txt
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# IDE specific files
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Application specific
+*.log
+*.env
+.env*
+!.env.example
+
+# Docker volumes and data
+data/
+volumes/
+
+# Temporary files
+tmp/
+temp/
+
+# Prometheus & Grafana data
+prometheus_data/
+grafana_data/
+
+# mise (formerly rtx) configuration
+.mise.toml
+
+# Build output
+bin/
+dist/
+build/
+
+# Logging
+logs/
+*.log
+log/
+application.log*
+error.log*
+debug.log*
+info.log*
+warn.log*
+access.log*
+server.log*
+api.log*
+app.log*
+service.log* 

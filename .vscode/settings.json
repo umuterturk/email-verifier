@@ -1,0 +1,13 @@
+{
+    "go.formatTool": "goimports",
+    "go.useLanguageServer": true,
+    "[go]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "always"
+        },
+        "editor.snippetSuggestions": "none"
+    },
+    "go.lintTool": "golangci-lint",
+    "go.lintOnSave": "package"
+} 
