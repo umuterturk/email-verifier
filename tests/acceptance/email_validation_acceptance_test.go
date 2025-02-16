@@ -1,3 +1,4 @@
+// Package acceptance contains end-to-end acceptance tests for the email validation service
 package acceptance
 
 import (
@@ -13,16 +14,20 @@ import (
 	"emailvalidator/internal/api"
 	"emailvalidator/internal/model"
 	"emailvalidator/internal/service"
+	"emailvalidator/pkg/cache"
 )
 
-type testServer struct {
+type acceptanceTestServer struct {
 	server *http.Server
 	url    string
 }
 
-func setupTestServer(t *testing.T) *testServer {
-	// Create service instances
-	emailService := service.NewEmailService()
+func setupAcceptanceTestServer(t *testing.T) *acceptanceTestServer {
+	// Create mock cache for testing
+	mockCache := cache.NewMockCache()
+
+	// Create service instances with mock cache
+	emailService := service.NewEmailServiceWithCache(mockCache)
 
 	// Create and configure HTTP handler
 	handler := api.NewHandler(emailService)
@@ -50,25 +55,25 @@ func setupTestServer(t *testing.T) *testServer {
 	// Wait for server to start
 	time.Sleep(100 * time.Millisecond)
 
-	return &testServer{
+	return &acceptanceTestServer{
 		server: server,
 		url:    fmt.Sprintf("http://localhost:%d", port),
 	}
 }
 
-func (ts *testServer) cleanup() error {
+func (ts *acceptanceTestServer) cleanup() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return ts.server.Shutdown(ctx)
 }
 
-func TestEndToEndEmailValidation(t *testing.T) {
+func TestAcceptanceEmailValidation(t *testing.T) {
 	// Skip in CI environment
 	if os.Getenv("CI") != "" {
 		t.Skip("Skipping acceptance tests in CI environment")
 	}
 
-	server := setupTestServer(t)
+	server := setupAcceptanceTestServer(t)
 	defer func() {
 		if err := server.cleanup(); err != nil {
 			t.Errorf("Failed to cleanup test server: %v", err)
@@ -208,13 +213,13 @@ func TestEndToEndEmailValidation(t *testing.T) {
 	})
 }
 
-func TestErrorScenarios(t *testing.T) {
+func TestAcceptanceErrorScenarios(t *testing.T) {
 	// Skip in CI environment
 	if os.Getenv("CI") != "" {
 		t.Skip("Skipping acceptance tests in CI environment")
 	}
 
-	server := setupTestServer(t)
+	server := setupAcceptanceTestServer(t)
 	defer func() {
 		if err := server.cleanup(); err != nil {
 			t.Errorf("Failed to cleanup test server: %v", err)
@@ -337,13 +342,13 @@ func TestErrorScenarios(t *testing.T) {
 	}
 }
 
-func TestConcurrentRequests(t *testing.T) {
+func TestAcceptanceConcurrentRequests(t *testing.T) {
 	// Skip in CI environment
 	if os.Getenv("CI") != "" {
 		t.Skip("Skipping acceptance tests in CI environment")
 	}
 
-	server := setupTestServer(t)
+	server := setupAcceptanceTestServer(t)
 	defer func() {
 		if err := server.cleanup(); err != nil {
 			t.Errorf("Failed to cleanup test server: %v", err)

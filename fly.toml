@@ -11,6 +11,7 @@ primary_region = 'ams'
 
 [env]
   PORT = '8080'
+  REDIS_URL = "redis://default:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}"
 
 [http_service]
   internal_port = 8080

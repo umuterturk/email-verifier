@@ -10,31 +10,14 @@ import (
 	"strings"
 )
 
-// initDisposableDomains initializes the map of disposable email domains by reading from a file
-func initDisposableDomains() map[string]struct{} {
-	disposableDomains := make(map[string]struct{})
+// LoadDisposableDomainsFromFile loads disposable email domains from a file
+func LoadDisposableDomainsFromFile(path string) ([]string, error) {
+	var domains []string
 
-	// Try multiple possible locations for the config file
-	possiblePaths := []string{
-		"../../config/disposable_domains.txt",
-	}
-
-	var file *os.File
-	var err error
-
-	// Try to open the file from possible locations
-	for _, path := range possiblePaths {
-		file, err = os.Open(filepath.Clean(path))
-		if err == nil {
-			break
-		}
-	}
-
+	file, err := os.Open(filepath.Clean(path))
 	if err != nil {
-		log.Printf("Warning: Could not open disposable domains file from any location: %v", err)
-		return disposableDomains
+		return nil, err
 	}
-
 	defer func() {
 		if err := file.Close(); err != nil {
 			log.Printf("Warning: Error closing disposable domains file: %v", err)
@@ -45,13 +28,23 @@ func initDisposableDomains() map[string]struct{} {
 	for scanner.Scan() {
 		domain := strings.TrimSpace(scanner.Text())
 		if domain != "" && !strings.HasPrefix(domain, "#") {
-			disposableDomains[domain] = struct{}{}
+			domains = append(domains, domain)
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Printf("Warning: Error reading disposable domains file: %v", err)
+		return nil, err
 	}
 
-	return disposableDomains
+	return domains, nil
+}
+
+// NewDisposableValidatorFromFile creates a new instance of DisposableValidator using domains from a file
+func NewDisposableValidatorFromFile(path string) *DisposableValidator {
+	domains, err := LoadDisposableDomainsFromFile(path)
+	if err != nil {
+		log.Printf("Warning: Could not load disposable domains from file: %v", err)
+		return NewDisposableValidator() // Fall back to default domains
+	}
+	return NewDisposableValidatorWithDomains(domains)
 }

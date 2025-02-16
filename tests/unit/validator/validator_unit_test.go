@@ -1,6 +1,8 @@
-package validator
+// Package validatortest contains unit tests for the validator package
+package validatortest
 
 import (
+	"emailvalidator/pkg/validator"
 	"net"
 	"testing"
 	"time"
@@ -40,7 +42,7 @@ func TestValidateSyntax(t *testing.T) {
 		},
 	}
 
-	validator := NewEmailValidator()
+	validator := validator.NewEmailValidator()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -86,7 +88,7 @@ func TestIsRoleBased(t *testing.T) {
 		},
 	}
 
-	validator := NewEmailValidator()
+	validator := validator.NewEmailValidator()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -127,7 +129,7 @@ func TestIsDisposable(t *testing.T) {
 		},
 	}
 
-	validator := NewEmailValidator()
+	validator := validator.NewEmailValidator()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -173,7 +175,7 @@ func TestGetTypoSuggestions(t *testing.T) {
 		},
 	}
 
-	validator := NewEmailValidator()
+	validator := validator.NewEmailValidator()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -233,7 +235,7 @@ func TestCalculateScore(t *testing.T) {
 		},
 	}
 
-	validator := NewEmailValidator()
+	validator := validator.NewEmailValidator()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -345,7 +347,7 @@ func TestDomainValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			validator := NewEmailValidator()
+			validator := validator.NewEmailValidator()
 			mockResolver := NewMockResolver()
 			validator.SetResolver(mockResolver)
 			validator.SetCacheDuration(time.Millisecond * 100)
@@ -387,7 +389,7 @@ func TestDomainValidation(t *testing.T) {
 func TestCacheExpiration(t *testing.T) {
 	t.Parallel()
 
-	validator := NewEmailValidator()
+	validator := validator.NewEmailValidator()
 	mockResolver := NewMockResolver()
 	validator.SetResolver(mockResolver)
 	validator.SetCacheDuration(time.Millisecond * 50)

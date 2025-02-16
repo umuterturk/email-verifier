@@ -26,6 +26,17 @@ func NewEmailValidator() *EmailValidator {
 	}
 }
 
+// NewEmailValidatorWithResolver creates a new instance of EmailValidator with a custom resolver
+func NewEmailValidatorWithResolver(resolver DNSResolver) *EmailValidator {
+	cacheManager := NewDomainCacheManager(time.Hour)
+	return &EmailValidator{
+		syntaxValidator:     NewSyntaxValidator(),
+		domainValidator:     NewDomainValidator(resolver, cacheManager),
+		roleValidator:       NewRoleValidator(),
+		disposableValidator: NewDisposableValidator(),
+	}
+}
+
 // SetResolver allows changing the DNS resolver
 func (v *EmailValidator) SetResolver(resolver DNSResolver) {
 	v.domainValidator = NewDomainValidator(resolver, v.domainValidator.cacheManager)
@@ -38,6 +49,23 @@ func (v *EmailValidator) SetCacheDuration(duration time.Duration) {
 
 // ValidateSyntax checks if the email address format is valid
 func (v *EmailValidator) ValidateSyntax(email string) bool {
+	// Check maximum length (RFC 5321)
+	if len(email) > 254 {
+		return false
+	}
+
+	// Split email into local part and domain
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return false
+	}
+
+	// Check local part and domain lengths
+	localPart, domain := parts[0], parts[1]
+	if len(localPart) > 64 || len(domain) > 255 {
+		return false
+	}
+
 	return v.syntaxValidator.Validate(email)
 }
 

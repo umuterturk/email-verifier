@@ -74,6 +74,22 @@ var (
 		},
 		[]string{"type"},
 	)
+
+	cacheHits = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "cache_hits_total",
+			Help: "The total number of cache hits",
+		},
+		[]string{"cache_type"},
+	)
+
+	cacheMisses = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "cache_misses_total",
+			Help: "The total number of cache misses",
+		},
+		[]string{"cache_type"},
+	)
 )
 
 // RecordRequest records metrics for an API request
@@ -106,4 +122,14 @@ func UpdateGoroutineCount(count float64) {
 func UpdateMemoryUsage(heapInUse, stackInUse float64) {
 	MemoryUsage.WithLabelValues("heap").Set(heapInUse)
 	MemoryUsage.WithLabelValues("stack").Set(stackInUse)
+}
+
+// RecordCacheHit records a cache hit for the specified cache type
+func RecordCacheHit(cacheType string) {
+	cacheHits.WithLabelValues(cacheType).Inc()
+}
+
+// RecordCacheMiss records a cache miss for the specified cache type
+func RecordCacheMiss(cacheType string) {
+	cacheMisses.WithLabelValues(cacheType).Inc()
 }

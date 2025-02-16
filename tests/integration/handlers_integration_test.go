@@ -1,27 +1,49 @@
-package api
+// Package integration contains integration tests for the API handlers
+package integration
 
 import (
 	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
+	"time"
 
+	"emailvalidator/internal/api"
 	"emailvalidator/internal/model"
 	"emailvalidator/internal/service"
+	"emailvalidator/pkg/cache"
+	"emailvalidator/pkg/validator"
 )
 
-func setupTestServer() *httptest.Server {
-	emailService := service.NewEmailService()
-	handler := NewHandler(emailService)
-	mux := http.NewServeMux()
-	handler.RegisterRoutes(mux)
-	return httptest.NewServer(mux)
+var (
+	testServer     *httptest.Server
+	testServerOnce sync.Once
+)
+
+func getTestServer(t *testing.T) *httptest.Server {
+	testServerOnce.Do(func() {
+		// Create mock cache and validator
+		mockCache := cache.NewMockCache()
+		emailValidator := validator.NewEmailValidator()
+
+		// Create a new service with mock dependencies
+		emailService := service.NewEmailServiceWithDeps(mockCache, emailValidator)
+		handler := api.NewHandler(emailService)
+		mux := http.NewServeMux()
+		handler.RegisterRoutes(mux)
+		testServer = httptest.NewServer(mux)
+	})
+	return testServer
 }
 
 func TestHandleValidate(t *testing.T) {
-	server := setupTestServer()
-	defer server.Close()
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+	t.Parallel()
+	server := getTestServer(t)
 
 	tests := []struct {
 		name       string
@@ -66,7 +88,18 @@ func TestHandleValidate(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt // capture range variable
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			start := time.Now()
+			defer func() {
+				t.Logf("Subtest '%s' took %v", tt.name, time.Since(start))
+			}()
+
+			client := &http.Client{
+				Timeout: 2 * time.Second,
+			}
+
 			var resp *http.Response
 			var err error
 
@@ -74,7 +107,7 @@ func TestHandleValidate(t *testing.T) {
 			case http.MethodPost:
 				reqBody := model.EmailValidationRequest{Email: tt.email}
 				jsonBody, _ := json.Marshal(reqBody)
-				resp, err = http.Post(server.URL+"/validate", "application/json", bytes.NewBuffer(jsonBody))
+				resp, err = client.Post(server.URL+"/validate", "application/json", bytes.NewBuffer(jsonBody))
 			case http.MethodGet:
 				req, reqErr := http.NewRequest(http.MethodGet, server.URL+"/validate", nil)
 				if reqErr != nil {
@@ -85,13 +118,13 @@ func TestHandleValidate(t *testing.T) {
 					q.Add("email", tt.email)
 					req.URL.RawQuery = q.Encode()
 				}
-				resp, err = http.DefaultClient.Do(req)
+				resp, err = client.Do(req)
 			default:
 				req, reqErr := http.NewRequest(tt.method, server.URL+"/validate", nil)
 				if reqErr != nil {
 					t.Fatalf("Failed to create request: %v", reqErr)
 				}
-				resp, err = http.DefaultClient.Do(req)
+				resp, err = client.Do(req)
 			}
 
 			if err != nil {
@@ -122,8 +155,11 @@ func TestHandleValidate(t *testing.T) {
 }
 
 func TestHandleBatchValidate(t *testing.T) {
-	server := setupTestServer()
-	defer server.Close()
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+	t.Parallel()
+	server := getTestServer(t)
 
 	tests := []struct {
 		name       string
@@ -146,11 +182,22 @@ func TestHandleBatchValidate(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			start := time.Now()
+			defer func() {
+				t.Logf("Subtest '%s' took %v", tt.name, time.Since(start))
+			}()
+
+			client := &http.Client{
+				Timeout: 2 * time.Second,
+			}
+
 			reqBody := model.BatchValidationRequest{Emails: tt.emails}
 			jsonBody, _ := json.Marshal(reqBody)
 
-			resp, err := http.Post(server.URL+"/validate/batch", "application/json", bytes.NewBuffer(jsonBody))
+			resp, err := client.Post(server.URL+"/validate/batch", "application/json", bytes.NewBuffer(jsonBody))
 			if err != nil {
 				t.Fatalf("Failed to make request: %v", err)
 			}
@@ -177,8 +224,11 @@ func TestHandleBatchValidate(t *testing.T) {
 }
 
 func TestHandleTypoSuggestions(t *testing.T) {
-	server := setupTestServer()
-	defer server.Close()
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+	t.Parallel()
+	server := getTestServer(t)
 
 	tests := []struct {
 		name              string
@@ -201,11 +251,22 @@ func TestHandleTypoSuggestions(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			start := time.Now()
+			defer func() {
+				t.Logf("Subtest '%s' took %v", tt.name, time.Since(start))
+			}()
+
+			client := &http.Client{
+				Timeout: 2 * time.Second,
+			}
+
 			reqBody := model.TypoSuggestionRequest{Email: tt.email}
 			jsonBody, _ := json.Marshal(reqBody)
 
-			resp, err := http.Post(server.URL+"/typo-suggestions", "application/json", bytes.NewBuffer(jsonBody))
+			resp, err := client.Post(server.URL+"/typo-suggestions", "application/json", bytes.NewBuffer(jsonBody))
 			if err != nil {
 				t.Fatalf("Failed to make request: %v", err)
 			}
@@ -233,10 +294,21 @@ func TestHandleTypoSuggestions(t *testing.T) {
 }
 
 func TestHandleStatus(t *testing.T) {
-	server := setupTestServer()
-	defer server.Close()
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+	t.Parallel()
+	start := time.Now()
+	defer func() {
+		t.Logf("Test 'TestHandleStatus' took %v", time.Since(start))
+	}()
 
-	resp, err := http.Get(server.URL + "/status")
+	server := getTestServer(t)
+	client := &http.Client{
+		Timeout: 2 * time.Second,
+	}
+
+	resp, err := client.Get(server.URL + "/status")
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
@@ -261,8 +333,11 @@ func TestHandleStatus(t *testing.T) {
 }
 
 func TestInvalidJSON(t *testing.T) {
-	server := setupTestServer()
-	defer server.Close()
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+	t.Parallel()
+	server := getTestServer(t)
 
 	endpoints := []string{
 		"/validate",
@@ -271,8 +346,19 @@ func TestInvalidJSON(t *testing.T) {
 	}
 
 	for _, endpoint := range endpoints {
+		endpoint := endpoint
 		t.Run(endpoint, func(t *testing.T) {
-			resp, err := http.Post(server.URL+endpoint, "application/json", bytes.NewBufferString("invalid json"))
+			t.Parallel()
+			start := time.Now()
+			defer func() {
+				t.Logf("Subtest '%s' took %v", endpoint, time.Since(start))
+			}()
+
+			client := &http.Client{
+				Timeout: 2 * time.Second,
+			}
+
+			resp, err := client.Post(server.URL+endpoint, "application/json", bytes.NewBufferString("invalid json"))
 			if err != nil {
 				t.Fatalf("Failed to make request: %v", err)
 			}

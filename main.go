@@ -5,16 +5,30 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"emailvalidator/internal/api"
 	"emailvalidator/internal/service"
+	"emailvalidator/pkg/cache"
 	"emailvalidator/pkg/monitoring"
 )
 
 func main() {
-	// Create service instances
-	emailService := service.NewEmailService()
+	// Get Redis URL from environment
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		log.Fatal("REDIS_URL environment variable is required")
+	}
+
+	// Initialize Redis cache
+	redisCache, err := cache.NewRedisCache(redisURL)
+	if err != nil {
+		log.Fatalf("Failed to initialize Redis cache: %v", err)
+	}
+
+	// Create service instances with Redis cache
+	emailService := service.NewEmailServiceWithCache(redisCache)
 
 	// Create and configure HTTP handler
 	handler := api.NewHandler(emailService)

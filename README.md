@@ -248,22 +248,59 @@ The service will be available at:
 └── config/                # Configuration files
 ```
 
-### Making Changes
+### Running Tests
 
-1. **Run Tests**
+1. **Run All Tests (excluding load tests)**
 ```bash
-go test ./...
+go test ./... -v -skip "Load"
 ```
 
-2. **Run Linter**
+2. **Run Tests with Race Detection**
+```bash
+go test -race ./... -skip "Load"
+```
+
+Race detection is crucial for identifying potential data races in concurrent code. It's automatically run in CI/CD pipelines and should be run locally before submitting changes.
+
+Common race conditions to watch for:
+- Concurrent map access
+- Shared variable access without proper synchronization
+- Channel operations
+- Goroutine lifecycle management
+
+3. **Run Load Tests**
+```bash
+go test ./test/load_test.go -v
+```
+
+### Code Quality
+
+1. **Run Linter**
 ```bash
 golangci-lint run
 ```
 
-3. **Format Code**
+2. **Format Code**
 ```bash
 go fmt ./...
 ```
+
+3. **Check for Common Mistakes**
+```bash
+go vet ./...
+```
+
+### Continuous Integration
+
+The project uses GitHub Actions for CI/CD with the following checks:
+- Unit tests with race detection
+- Integration tests
+- Code linting
+- Code formatting
+- Security scanning
+- Dependency updates
+
+All these checks must pass before code can be merged into the main branch.
 
 ## Testing
 

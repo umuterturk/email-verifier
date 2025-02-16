@@ -20,12 +20,12 @@ FROM alpine:latest
 
 WORKDIR /app
 
-# Copy the binary from builder
+# Copy the binary and config
 COPY --from=builder /app/main .
+COPY --from=builder /app/config ./config
 
-# Copy any additional required files (if needed)
-# COPY config/ config/
-# COPY templates/ templates/
+# Install ca-certificates for secure Redis connections
+RUN apk --no-cache add ca-certificates
 
 # Expose the port
 EXPOSE 8080
