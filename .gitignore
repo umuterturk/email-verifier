@@ -80,3 +80,5 @@ server.log*
 api.log*
 app.log*
 service.log* 
+
+.env
