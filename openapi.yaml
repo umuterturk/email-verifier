@@ -1,0 +1,281 @@
+openapi: 3.1.0
+info:
+  title: RapidShield Email Validator 2025 API
+  description: |
+    API for validating email addresses, checking for disposable domains, 
+    and providing typo suggestions. Supports both single and batch validation.
+  version: 1.0.0
+  contact:
+    name: RapidShield Email Validator 2025 Support
+servers:
+  - url: https://fast-email-verifier.fly.dev
+    description: Production server
+  - url: http://localhost:8080
+    description: Local development
+
+security:
+  - RapidAPIKey: []
+
+components:
+  securitySchemes:
+    RapidAPIKey:
+      type: apiKey
+      in: header
+      name: X-RapidAPI-Key
+      description: RapidAPI subscription key for authentication
+
+  schemas:
+    EmailValidationRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+
+    BatchValidationRequest:
+      type: object
+      required:
+        - emails
+      properties:
+        emails:
+          type: array
+          items:
+            type: string
+            format: email
+          example: ["user1@example.com", "user2@example.com"]
+          maxItems: 100
+
+    ValidationResult:
+      type: object
+      properties:
+        is_valid:
+          type: boolean
+          description: Whether the email is valid according to syntax and DNS checks
+        is_disposable:
+          type: boolean
+          description: Whether the email domain is a known disposable/temporary email provider
+        has_mx_record:
+          type: boolean
+          description: Whether the email domain has valid MX records
+        domain:
+          type: string
+          description: The domain part of the email address
+        username:
+          type: string
+          description: The local part (username) of the email address
+        suggestion:
+          type: string
+          description: Suggested correction if a typo is detected
+          nullable: true
+
+    BatchValidationResponse:
+      type: object
+      properties:
+        results:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ValidationResult'
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message describing what went wrong
+
+paths:
+  /validate:
+    get:
+      summary: Validate a single email address
+      description: Validates an email address and returns detailed information about its validity
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            format: email
+      responses:
+        '200':
+          description: Successful validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    post:
+      summary: Validate a single email address
+      description: Validates an email address and returns detailed information about its validity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailValidationRequest'
+      responses:
+        '200':
+          description: Successful validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /validate/batch:
+    get:
+      summary: Validate multiple email addresses
+      description: Validates multiple email addresses in a single request
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+              format: email
+          style: form
+          explode: true
+      responses:
+        '200':
+          description: Successful batch validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchValidationResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    post:
+      summary: Validate multiple email addresses
+      description: Validates multiple email addresses in a single request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchValidationRequest'
+      responses:
+        '200':
+          description: Successful batch validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchValidationResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /typo-suggestions:
+    get:
+      summary: Get typo suggestions for an email address
+      description: Analyzes an email address for potential typos and returns suggestions
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            format: email
+      responses:
+        '200':
+          description: Successful suggestion generation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggestions:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /status:
+    get:
+      summary: Get service status
+      description: Returns the current status of the email validation service
+      responses:
+        '200':
+          description: Service status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, degraded, maintenance]
+                  version:
+                    type: string
+                  uptime:
+                    type: number
+                    description: Service uptime in seconds
+
+  /metrics:
+    get:
+      summary: Get service metrics
+      description: Returns Prometheus metrics for monitoring
+      responses:
+        '200':
+          description: Prometheus metrics
+          content:
+            text/plain:
+              schema:
+                type: string 

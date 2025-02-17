@@ -24,10 +24,11 @@ func NewHandler(emailService *service.EmailService) *Handler {
 
 // RegisterRoutes registers all API routes
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/validate", h.handleValidate)
-	mux.HandleFunc("/validate/batch", h.handleBatchValidate)
-	mux.HandleFunc("/typo-suggestions", h.handleTypoSuggestions)
-	mux.HandleFunc("/status", h.handleStatus)
+	mux.HandleFunc("/validate", h.HandleValidate)
+	mux.HandleFunc("/validate/batch", h.HandleBatchValidate)
+	mux.HandleFunc("/typo-suggestions", h.HandleTypoSuggestions)
+	mux.HandleFunc("/status", h.HandleStatus)
+	mux.HandleFunc("/rapidapi-health", h.HandleRapidAPIHealth)
 }
 
 // sendError sends a JSON error response
@@ -40,7 +41,8 @@ func sendError(w http.ResponseWriter, status int, message string) {
 	}
 }
 
-func (h *Handler) handleValidate(w http.ResponseWriter, r *http.Request) {
+// HandleValidate handles email validation requests
+func (h *Handler) HandleValidate(w http.ResponseWriter, r *http.Request) {
 	var req model.EmailValidationRequest
 
 	switch r.Method {
@@ -69,7 +71,8 @@ func (h *Handler) handleValidate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) handleBatchValidate(w http.ResponseWriter, r *http.Request) {
+// HandleBatchValidate handles batch email validation requests
+func (h *Handler) HandleBatchValidate(w http.ResponseWriter, r *http.Request) {
 	var req model.BatchValidationRequest
 
 	switch r.Method {
@@ -98,7 +101,8 @@ func (h *Handler) handleBatchValidate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) handleTypoSuggestions(w http.ResponseWriter, r *http.Request) {
+// HandleTypoSuggestions handles email typo suggestion requests
+func (h *Handler) HandleTypoSuggestions(w http.ResponseWriter, r *http.Request) {
 	var req model.TypoSuggestionRequest
 
 	switch r.Method {
@@ -127,7 +131,8 @@ func (h *Handler) handleTypoSuggestions(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (h *Handler) handleStatus(w http.ResponseWriter, r *http.Request) {
+// HandleStatus handles API status requests
+func (h *Handler) HandleStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
@@ -137,6 +142,23 @@ func (h *Handler) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(status); err != nil {
+		sendError(w, http.StatusInternalServerError, "Failed to encode response")
+	}
+}
+
+// HandleRapidAPIHealth handles RapidAPI health check requests
+func (h *Handler) HandleRapidAPIHealth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	health := model.RapidAPIHealth{
+		Status: "OK",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(health); err != nil {
 		sendError(w, http.StatusInternalServerError, "Failed to encode response")
 	}
 }

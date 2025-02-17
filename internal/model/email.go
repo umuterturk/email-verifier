@@ -81,3 +81,8 @@ type CreditInfo struct {
 	RemainingCredits int `json:"remaining_credits"`
 	TotalCredits     int `json:"total_credits"`
 }
+
+// RapidAPIHealth represents the health check response for RapidAPI
+type RapidAPIHealth struct {
+	Status string `json:"status"`
+}
