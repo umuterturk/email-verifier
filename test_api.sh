@@ -44,7 +44,8 @@ check_response() {
     local description=$3
     
     # Extract the status field from the JSON response
-    local actual_status=$(echo "$response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+    local actual_status
+    actual_status=$(echo "$response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
     
     if [ -n "$expected_status" ]; then
         if [ "$actual_status" = "$expected_status" ]; then
@@ -60,7 +61,7 @@ get_endpoint_index() {
     local type=$1
     for i in "${!endpoint_types[@]}"; do
         if [[ "${endpoint_types[$i]}" == "$type" ]]; then
-            echo $i
+            echo "$i"
             return
         fi
     done
@@ -82,8 +83,9 @@ test_endpoint() {
     
     # Capture the output and timing
     local output
-    output=$(eval $curl_cmd)
-    local time=$(echo "$output" | grep "Time:" | cut -d' ' -f2 | sed 's/s//')
+    output=$(eval "$curl_cmd")
+    local time
+    time=$(echo "$output" | grep "Time:" | cut -d' ' -f2 | sed 's/s//')
     echo "$output"
     
     # Check response against expected status
@@ -102,7 +104,7 @@ print_header "Single Email Validation Tests"
 
 # Valid email - POST
 test_endpoint "Valid email (POST)" \
-'curl -X POST "${API_URL}/validate" -H "Content-Type: application/json" -d "{\"email\":\"user@example.com\"}" ${SKIP_SECRET_HEADER}' \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"user@example.com\"}' ${SKIP_SECRET_HEADER}" \
 "single_validation" \
 "VALID"
 
@@ -114,25 +116,25 @@ test_endpoint "Valid email (GET)" \
 
 # Invalid email format - POST
 test_endpoint "Invalid email format (POST)" \
-'curl -X POST "${API_URL}/validate" -H "Content-Type: application/json" -d "{\"email\":\"invalid-email\"}"' \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"invalid-email\"}' ${SKIP_SECRET_HEADER}" \
 "single_validation" \
 "INVALID_FORMAT"
 
 # Invalid email format - GET
 test_endpoint "Invalid email format (GET)" \
-"curl -X GET \"${API_URL}/validate?email=invalid-email\"" \
+"curl -X GET \"${API_URL}/validate?email=invalid-email\" ${SKIP_SECRET_HEADER}" \
 "single_validation" \
 "INVALID_FORMAT"
 
 # Empty email - POST
 test_endpoint "Empty email (POST)" \
-'curl -X POST "${API_URL}/validate" -H "Content-Type: application/json" -d "{\"email\":\"\"}"' \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"\"}' ${SKIP_SECRET_HEADER}" \
 "single_validation" \
 "MISSING_EMAIL"
 
 # Missing email parameter - GET
 test_endpoint "Missing email parameter (GET)" \
-"curl -X GET \"${API_URL}/validate\"" \
+"curl -X GET \"${API_URL}/validate\" ${SKIP_SECRET_HEADER}" \
 "single_validation"
 
 # 2. Batch Email Validation Tests
@@ -140,22 +142,22 @@ print_header "Batch Email Validation Tests"
 
 # Multiple valid emails - POST
 test_endpoint "Multiple valid emails (POST)" \
-'curl -X POST "${API_URL}/validate/batch" -H "Content-Type: application/json" -d "{\"emails\":[\"user1@example.com\",\"user2@example.com\"]}"' \
+"curl -X POST \"${API_URL}/validate/batch\" -H \"Content-Type: application/json\" -d '{\"emails\":[\"user1@example.com\",\"user2@example.com\"]}' ${SKIP_SECRET_HEADER}" \
 "batch_validation"
 
 # Multiple valid emails - GET
 test_endpoint "Multiple valid emails (GET)" \
-"curl -X GET \"${API_URL}/validate/batch?email=user1@example.com&email=user2@example.com\"" \
+"curl -X GET \"${API_URL}/validate/batch?email=user1@example.com&email=user2@example.com\" ${SKIP_SECRET_HEADER}" \
 "batch_validation"
 
 # Mixed valid and invalid emails - POST
 test_endpoint "Mixed valid and invalid emails (POST)" \
-'curl -X POST "${API_URL}/validate/batch" -H "Content-Type: application/json" -d "{\"emails\":[\"valid@example.com\",\"invalid-email\"]}"' \
+"curl -X POST \"${API_URL}/validate/batch\" -H \"Content-Type: application/json\" -d '{\"emails\":[\"valid@example.com\",\"invalid-email\"]}' ${SKIP_SECRET_HEADER}" \
 "batch_validation"
 
 # Empty batch - POST
 test_endpoint "Empty batch (POST)" \
-'curl -X POST "${API_URL}/validate/batch" -H "Content-Type: application/json" -d "{\"emails\":[]}"' \
+"curl -X POST \"${API_URL}/validate/batch\" -H \"Content-Type: application/json\" -d '{\"emails\":[]}' ${SKIP_SECRET_HEADER}" \
 "batch_validation"
 
 # 3. Typo Suggestion Tests
@@ -163,22 +165,22 @@ print_header "Typo Suggestion Tests"
 
 # Gmail typo - POST
 test_endpoint "Gmail typo (POST)" \
-'curl -X POST "${API_URL}/typo-suggestions" -H "Content-Type: application/json" -d "{\"email\":\"user@gmial.com\"}"' \
+"curl -X POST \"${API_URL}/typo-suggestions\" -H \"Content-Type: application/json\" -d '{\"email\":\"user@gmial.com\"}' ${SKIP_SECRET_HEADER}" \
 "typo_suggestions"
 
 # Gmail typo - GET
 test_endpoint "Gmail typo (GET)" \
-"curl -X GET \"${API_URL}/typo-suggestions?email=user@gmial.com\"" \
+"curl -X GET \"${API_URL}/typo-suggestions?email=user@gmial.com\" ${SKIP_SECRET_HEADER}" \
 "typo_suggestions"
 
 # Yahoo typo - POST
 test_endpoint "Yahoo typo (POST)" \
-'curl -X POST "${API_URL}/typo-suggestions" -H "Content-Type: application/json" -d "{\"email\":\"user@yhaoo.com\"}"' \
+"curl -X POST \"${API_URL}/typo-suggestions\" -H \"Content-Type: application/json\" -d '{\"email\":\"user@yhaoo.com\"}' ${SKIP_SECRET_HEADER}" \
 "typo_suggestions"
 
 # Hotmail typo - GET
 test_endpoint "Hotmail typo (GET)" \
-"curl -X GET \"${API_URL}/typo-suggestions?email=user@hotmial.com\"" \
+"curl -X GET \"${API_URL}/typo-suggestions?email=user@hotmial.com\" ${SKIP_SECRET_HEADER}" \
 "typo_suggestions"
 
 # 4. Special Cases
@@ -186,19 +188,19 @@ print_header "Special Cases"
 
 # Disposable email - POST
 test_endpoint "Disposable email (POST)" \
-'curl -X POST "${API_URL}/validate" -H "Content-Type: application/json" -d "{\"email\":\"user@tempmail.com\"}"' \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"user@tempmail.com\"}' ${SKIP_SECRET_HEADER}" \
 "special_cases" \
 "DISPOSABLE"
 
 # Role-based email - POST
 test_endpoint "Role-based email (POST)" \
-'curl -X POST "${API_URL}/validate" -H "Content-Type: application/json" -d "{\"email\":\"admin@example.com\"}"' \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"admin@example.com\"}' ${SKIP_SECRET_HEADER}" \
 "special_cases" \
 "VALID"
 
 # Non-existent domain - POST
 test_endpoint "Non-existent domain (POST)" \
-'curl -X POST "${API_URL}/validate" -H "Content-Type: application/json" -d "{\"email\":\"user@nonexistentdomain123456.com\"}"' \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"user@nonexistentdomain123456.com\"}' ${SKIP_SECRET_HEADER}" \
 "special_cases" \
 "INVALID_DOMAIN"
 
@@ -207,17 +209,17 @@ print_header "Error Cases"
 
 # Invalid JSON - POST
 test_endpoint "Invalid JSON (POST)" \
-'curl -X POST "${API_URL}/validate" -H "Content-Type: application/json" -d "invalid json"' \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d \"invalid json\" ${SKIP_SECRET_HEADER}" \
 "error_cases"
 
 # Wrong Content-Type - POST
 test_endpoint "Wrong Content-Type (POST)" \
-'curl -X POST "${API_URL}/validate" -H "Content-Type: text/plain" -d "{\"email\":\"user@example.com\"}"' \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: text/plain\" -d '{\"email\":\"user@example.com\"}' ${SKIP_SECRET_HEADER}" \
 "error_cases"
 
 # Method not allowed - PUT
 test_endpoint "Method not allowed (PUT)" \
-'curl -X PUT "${API_URL}/validate" -H "Content-Type: application/json" -d "{\"email\":\"user@example.com\"}"' \
+"curl -X PUT \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"user@example.com\"}' ${SKIP_SECRET_HEADER}" \
 "error_cases"
 
 # 6. Status Check
@@ -225,7 +227,7 @@ print_header "Status Check"
 
 # Get service status
 test_endpoint "Service Status" \
-"curl ${API_URL}/status" \
+"curl \"${API_URL}/status\" ${SKIP_SECRET_HEADER}" \
 "status"
 
 # 6. Skip Secret Tests
@@ -235,7 +237,7 @@ print_header "Skip Secret Tests"
 if [ -n "$RAPID_API_SKIP_SECRET" ]; then
     # Valid email with skip secret - POST
     test_endpoint "Valid email with skip secret (POST)" \
-    'curl -X POST "${API_URL}/validate" -H "Content-Type: application/json" -H "X-API-Skip-Secret: ${RAPID_API_SKIP_SECRET}" -d "{\"email\":\"user@example.com\"}"' \
+    "curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -H \"X-API-Skip-Secret: ${RAPID_API_SKIP_SECRET}\" -d '{\"email\":\"user@example.com\"}'" \
     "skip_secret" \
     "VALID"
 
@@ -247,12 +249,12 @@ if [ -n "$RAPID_API_SKIP_SECRET" ]; then
 
     # Batch validation with skip secret - POST
     test_endpoint "Batch validation with skip secret (POST)" \
-    'curl -X POST "${API_URL}/validate/batch" -H "Content-Type: application/json" -H "X-API-Skip-Secret: ${RAPID_API_SKIP_SECRET}" -d "{\"emails\":[\"user1@example.com\",\"user2@example.com\"]}"' \
+    "curl -X POST \"${API_URL}/validate/batch\" -H \"Content-Type: application/json\" -H \"X-API-Skip-Secret: ${RAPID_API_SKIP_SECRET}\" -d '{\"emails\":[\"user1@example.com\",\"user2@example.com\"]}'" \
     "skip_secret"
 
     # Invalid skip secret - POST
     test_endpoint "Invalid skip secret (POST)" \
-    'curl -X POST "${API_URL}/validate" -H "Content-Type: application/json" -H "X-API-Skip-Secret: invalid-secret" -d "{\"email\":\"user@example.com\"}"' \
+    "curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -H \"X-API-Skip-Secret: invalid-secret\" -d '{\"email\":\"user@example.com\"}'" \
     "skip_secret"
 else
     echo -e "${YELLOW}Skipping skip secret tests - RAPID_API_SKIP_SECRET not set in .env${NC}"
@@ -271,11 +273,11 @@ for i in "${!endpoint_types[@]}"; do
     count=${counts[$i]}
     total_time_for_type=${times[$i]}
     
-    if [ $count -gt 0 ]; then
+    if [ "$count" -gt 0 ]; then
         avg_time=$(echo "scale=3; $total_time_for_type / $count" | bc)
         printf "%-25s %10d %15.3f %15.3f\n" \
-            "$(echo ${endpoint_types[$i]} | tr '_' ' ' | awk '{for(j=1;j<=NF;j++)sub(/./,toupper(substr($j,1,1)),$j)}1')" \
-            $count $total_time_for_type $avg_time
+            "$(echo "${endpoint_types[$i]}" | tr '_' ' ' | awk '{for(j=1;j<=NF;j++)sub(/./,toupper(substr($j,1,1)),$j)}1')" \
+            "$count" "$total_time_for_type" "$avg_time"
         
         total_requests=$((total_requests + count))
         total_time=$(echo "$total_time + $total_time_for_type" | bc)
@@ -285,5 +287,5 @@ done
 printf "%-60s\n" "================================================================="
 if [ $total_requests -gt 0 ]; then
     avg_time=$(echo "scale=3; $total_time / $total_requests" | bc)
-    printf "${GREEN}%-25s %10d %15.3f %15.3f${NC}\n" "Overall" $total_requests $total_time $avg_time
+    printf "${GREEN}%-25s %10d %15.3f %15.3f${NC}\n" "Overall" "$total_requests" "$total_time" "$avg_time"
 fi 
