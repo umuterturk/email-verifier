@@ -44,11 +44,10 @@ func main() {
 	// Create a new mux for authenticated routes
 	authenticatedMux := http.NewServeMux()
 
-	// Register all routes except health check to authenticated mux
+	// Register routes that require authentication
 	authenticatedMux.HandleFunc("/validate", handler.HandleValidate)
 	authenticatedMux.HandleFunc("/validate/batch", handler.HandleBatchValidate)
 	authenticatedMux.HandleFunc("/typo-suggestions", handler.HandleTypoSuggestions)
-	authenticatedMux.HandleFunc("/status", handler.HandleStatus)
 
 	// Wrap authenticated routes with monitoring middleware and RapidAPI authentication
 	monitoredHandler := monitoring.MetricsMiddleware(authenticatedMux)
@@ -56,7 +55,13 @@ func main() {
 
 	// Create final mux that combines both authenticated and unauthenticated routes
 	finalMux := http.NewServeMux()
+
+	// Register public endpoints first
 	finalMux.Handle("/rapidapi-health", monitoring.MetricsMiddleware(http.HandlerFunc(handler.HandleRapidAPIHealth)))
+	finalMux.Handle("/status", monitoring.MetricsMiddleware(http.HandlerFunc(handler.HandleStatus)))
+	finalMux.Handle("/metrics", monitoring.MetricsMiddleware(monitoring.PrometheusHandler()))
+
+	// Register authenticated routes last (catch-all)
 	finalMux.Handle("/", authenticatedHandler)
 
 	// Start server
