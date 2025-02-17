@@ -146,10 +146,13 @@ func TestHandleValidate(t *testing.T) {
 				req.Header.Set("Content-Type", "application/json")
 				addRapidAPIHeaders(req)
 				resp, err = client.Do(req)
+				if err != nil {
+					t.Fatalf("Failed to make request: %v", err)
+				}
 			case http.MethodGet:
-				req, reqErr := http.NewRequest(http.MethodGet, server.URL+"/validate", nil)
-				if reqErr != nil {
-					t.Fatalf("Failed to create request: %v", reqErr)
+				req, err := http.NewRequest(http.MethodGet, server.URL+"/validate", nil)
+				if err != nil {
+					t.Fatalf("Failed to create request: %v", err)
 				}
 				if tt.email != "" {
 					q := req.URL.Query()
@@ -158,13 +161,19 @@ func TestHandleValidate(t *testing.T) {
 				}
 				addRapidAPIHeaders(req)
 				resp, err = client.Do(req)
+				if err != nil {
+					t.Fatalf("Failed to make request: %v", err)
+				}
 			default:
-				req, reqErr := http.NewRequest(tt.method, server.URL+"/validate", nil)
-				if reqErr != nil {
-					t.Fatalf("Failed to create request: %v", reqErr)
+				req, err := http.NewRequest(tt.method, server.URL+"/validate", nil)
+				if err != nil {
+					t.Fatalf("Failed to create request: %v", err)
 				}
 				addRapidAPIHeaders(req)
 				resp, err = client.Do(req)
+				if err != nil {
+					t.Fatalf("Failed to make request: %v", err)
+				}
 			}
 
 			if err != nil {
@@ -548,7 +557,11 @@ func TestPublicEndpoints(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to make request with auth: %v", err)
 				}
-				defer respWithAuth.Body.Close()
+				defer func() {
+					if err := respWithAuth.Body.Close(); err != nil {
+						t.Errorf("Failed to close response body: %v", err)
+					}
+				}()
 
 				if respWithAuth.StatusCode != http.StatusOK {
 					t.Errorf("endpoint should ignore invalid auth headers, got status %d, want %d", respWithAuth.StatusCode, http.StatusOK)
