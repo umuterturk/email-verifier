@@ -12,13 +12,28 @@ func NewRapidAPIAuthMiddleware(next http.Handler, proxySecret string) http.Handl
 		proxySecret = os.Getenv("X_RAPIDAPI_SECRET")
 	}
 
+	skipSecret := os.Getenv("RAPID_API_SKIP_SECRET")
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check for bypass secret first
+		if skipSecret != "" && r.Header.Get("X-API-Skip-Secret") == skipSecret {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		// Get the proxy secret from the request header
 		headerProxySecret := r.Header.Get("X-RapidAPI-Secret")
 
 		// Validate RapidAPI headers
 		if headerProxySecret == "" || headerProxySecret != proxySecret {
 			http.Error(w, "Invalid or missing RapidAPI proxy secret", http.StatusUnauthorized)
+			return
+		}
+
+		// Check other RapidAPI headers
+		rapidAPIKey := r.Header.Get("X-RapidAPI-Key")
+		if rapidAPIKey == "" {
+			http.Error(w, "Missing RapidAPI key", http.StatusUnauthorized)
 			return
 		}
 

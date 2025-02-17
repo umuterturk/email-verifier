@@ -11,7 +11,14 @@ import (
 func TestRapidAPIAuthMiddleware(t *testing.T) {
 	// Use a mock secret for testing
 	//nolint:gosec // This is a mock secret for testing purposes
-	const expectedSecret = "test-proxy-secret"
+	const (
+		expectedSecret = "test-proxy-secret"
+		skipSecret     = "test-skip-secret"
+	)
+
+	// Set environment variables for testing
+	t.Setenv("RAPID_API_SKIP_SECRET", skipSecret)
+	t.Setenv("X_RAPIDAPI_SECRET", expectedSecret)
 
 	// Create a simple test handler that always returns 200 OK
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -22,35 +29,55 @@ func TestRapidAPIAuthMiddleware(t *testing.T) {
 		name           string
 		rapidAPIKey    string
 		proxySecret    string
+		skipSecret     string
 		expectedStatus int
 	}{
 		{
 			name:           "Valid headers",
 			rapidAPIKey:    "valid-api-key",
 			proxySecret:    expectedSecret,
+			skipSecret:     "",
 			expectedStatus: http.StatusOK,
 		},
 		{
 			name:           "Missing RapidAPI Key",
 			rapidAPIKey:    "",
 			proxySecret:    expectedSecret,
+			skipSecret:     "",
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
 			name:           "Invalid proxy secret",
 			rapidAPIKey:    "valid-api-key",
 			proxySecret:    "invalid-secret",
+			skipSecret:     "",
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
 			name:           "Missing proxy secret",
 			rapidAPIKey:    "valid-api-key",
 			proxySecret:    "",
+			skipSecret:     "",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "Valid skip secret bypasses RapidAPI checks",
+			rapidAPIKey:    "",
+			proxySecret:    "",
+			skipSecret:     skipSecret,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Invalid skip secret",
+			rapidAPIKey:    "",
+			proxySecret:    "",
+			skipSecret:     "invalid-skip-secret",
 			expectedStatus: http.StatusUnauthorized,
 		},
 	}
 
 	for _, tt := range tests {
+		tt := tt // capture range variable
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a new request
 			req := httptest.NewRequest("GET", "/test", nil)
@@ -61,6 +88,9 @@ func TestRapidAPIAuthMiddleware(t *testing.T) {
 			}
 			if tt.proxySecret != "" {
 				req.Header.Set("X-RapidAPI-Secret", tt.proxySecret)
+			}
+			if tt.skipSecret != "" {
+				req.Header.Set("X-API-Skip-Secret", tt.skipSecret)
 			}
 
 			// Create a response recorder
