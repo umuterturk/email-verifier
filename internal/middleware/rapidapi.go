@@ -30,14 +30,6 @@ func NewRapidAPIAuthMiddleware(next http.Handler, proxySecret string) http.Handl
 			return
 		}
 
-		// Check other RapidAPI headers
-		rapidAPIKey := r.Header.Get("X-RapidAPI-Key")
-		if rapidAPIKey == "" {
-			http.Error(w, "Missing RapidAPI key", http.StatusUnauthorized)
-			return
-		}
-
-		// You can add additional validation here if needed
 		next.ServeHTTP(w, r)
 	})
 }

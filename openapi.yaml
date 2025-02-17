@@ -14,15 +14,15 @@ servers:
     description: Local development
 
 security:
-  - RapidAPIKey: []
+  - RapidAPISecret: []
 
 components:
   securitySchemes:
-    RapidAPIKey:
+    RapidAPISecret:
       type: apiKey
       in: header
-      name: X-RapidAPI-Key
-      description: RapidAPI subscription key for authentication
+      name: X-RapidAPI-Secret
+      description: RapidAPI proxy secret for authentication
 
   schemas:
     EmailValidationRequest:

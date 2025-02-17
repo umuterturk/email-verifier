@@ -27,49 +27,36 @@ func TestRapidAPIAuthMiddleware(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		rapidAPIKey    string
 		proxySecret    string
 		skipSecret     string
 		expectedStatus int
 	}{
 		{
-			name:           "Valid headers",
-			rapidAPIKey:    "valid-api-key",
+			name:           "Valid proxy secret",
 			proxySecret:    expectedSecret,
 			skipSecret:     "",
 			expectedStatus: http.StatusOK,
 		},
 		{
-			name:           "Missing RapidAPI Key",
-			rapidAPIKey:    "",
-			proxySecret:    expectedSecret,
-			skipSecret:     "",
-			expectedStatus: http.StatusUnauthorized,
-		},
-		{
 			name:           "Invalid proxy secret",
-			rapidAPIKey:    "valid-api-key",
 			proxySecret:    "invalid-secret",
 			skipSecret:     "",
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
 			name:           "Missing proxy secret",
-			rapidAPIKey:    "valid-api-key",
 			proxySecret:    "",
 			skipSecret:     "",
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
 			name:           "Valid skip secret bypasses RapidAPI checks",
-			rapidAPIKey:    "",
 			proxySecret:    "",
 			skipSecret:     skipSecret,
 			expectedStatus: http.StatusOK,
 		},
 		{
 			name:           "Invalid skip secret",
-			rapidAPIKey:    "",
 			proxySecret:    "",
 			skipSecret:     "invalid-skip-secret",
 			expectedStatus: http.StatusUnauthorized,
@@ -83,9 +70,6 @@ func TestRapidAPIAuthMiddleware(t *testing.T) {
 			req := httptest.NewRequest("GET", "/test", nil)
 
 			// Set headers
-			if tt.rapidAPIKey != "" {
-				req.Header.Set("X-RapidAPI-Key", tt.rapidAPIKey)
-			}
 			if tt.proxySecret != "" {
 				req.Header.Set("X-RapidAPI-Secret", tt.proxySecret)
 			}

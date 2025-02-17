@@ -25,12 +25,10 @@ var (
 )
 
 const (
-	testRapidAPIKey    = "test-api-key"
 	testRapidAPISecret = "test-secret"
 )
 
 func addRapidAPIHeaders(req *http.Request) {
-	req.Header.Set("X-RapidAPI-Key", testRapidAPIKey)
 	req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
 }
 
