@@ -60,7 +60,7 @@ func TestRapidAPIAuthMiddleware(t *testing.T) {
 				req.Header.Set("X-RapidAPI-Key", tt.rapidAPIKey)
 			}
 			if tt.proxySecret != "" {
-				req.Header.Set("X-RapidAPI-Proxy-Secret", tt.proxySecret)
+				req.Header.Set("X-RapidAPI-Secret", tt.proxySecret)
 			}
 
 			// Create a response recorder
