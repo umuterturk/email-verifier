@@ -23,13 +23,6 @@ func main() {
 
 	// Create and configure HTTP handler
 	handler := api.NewHandler(emailService)
-	mux := http.NewServeMux()
-
-	// Register routes
-	handler.RegisterRoutes(mux)
-
-	// Add Prometheus metrics endpoint
-	mux.Handle("/metrics", monitoring.PrometheusHandler())
 
 	// Create a new mux for authenticated routes
 	authenticatedMux := http.NewServeMux()
@@ -46,13 +39,29 @@ func main() {
 	// Create final mux that combines both authenticated and unauthenticated routes
 	finalMux := http.NewServeMux()
 
-	// Register public endpoints first
+	// Register static file server first (no authentication required)
+	fs := http.FileServer(http.Dir("static"))
+	finalMux.Handle("/static/", http.StripPrefix("/static/", fs))
+	
+	// Serve index.html at the root
+	finalMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.ServeFile(w, r, "static/index.html")
+			return
+		}
+		fs.ServeHTTP(w, r)
+	})
+
+	// Register public endpoints
 	finalMux.Handle("/rapidapi-health", monitoring.MetricsMiddleware(http.HandlerFunc(handler.HandleRapidAPIHealth)))
 	finalMux.Handle("/status", monitoring.MetricsMiddleware(http.HandlerFunc(handler.HandleStatus)))
 	finalMux.Handle("/metrics", monitoring.MetricsMiddleware(monitoring.PrometheusHandler()))
 
-	// Register authenticated routes last (catch-all)
-	finalMux.Handle("/", authenticatedHandler)
+	// Register API routes with authentication
+	// Mount all authenticated routes under /api
+	apiMux := http.NewServeMux()
+	apiMux.Handle("/", authenticatedHandler)
+	finalMux.Handle("/api/", http.StripPrefix("/api", apiMux))
 
 	// Start server
 	port := os.Getenv("PORT")

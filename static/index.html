@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RapidShield Email Validator 2025 - Lightning Fast Email Validation API</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --background: #f8fafc;
+            --text: #0f172a;
+            --text-secondary: #475569;
+            --border-radius: 12px;
+            --spacing: 2rem;
+            --card-bg: #ffffff;
+            --success: #059669;
+            --success-light: #ecfdf5;
+            --gradient-start: #eff6ff;
+            --gradient-end: #f1f5f9;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--spacing);
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 6rem 2rem;
+            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+            border-radius: var(--border-radius);
+            margin-bottom: var(--spacing);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 2rem;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing);
+            margin-bottom: var(--spacing);
+        }
+        
+        .feature-card {
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            background: var(--card-bg);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease-in-out;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-card h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+        
+        .metric {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .benefits {
+            background: var(--card-bg);
+            padding: 3rem 2rem;
+            border-radius: var(--border-radius);
+            margin-bottom: var(--spacing);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .benefits h2 {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: var(--text);
+        }
+        
+        .benefits ul {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            list-style: none;
+            padding: 0;
+        }
+        
+        .benefits li {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+        
+        .benefits li::before {
+            content: "✓";
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background: var(--success-light);
+            color: var(--success);
+            border-radius: 50%;
+            font-size: 0.875rem;
+            font-weight: bold;
+        }
+        
+        .api-spec {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            margin-bottom: var(--spacing);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .api-spec h2 {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: var(--text);
+        }
+        
+        .swagger-ui .info .title {
+            color: var(--primary);
+        }
+        
+        .swagger-ui .opblock {
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin: 0 0 1rem;
+        }
+        
+        .swagger-ui .opblock.opblock-post {
+            border-color: var(--primary);
+            background: rgba(37, 99, 235, 0.05);
+        }
+        
+        .swagger-ui .btn.execute {
+            background-color: var(--primary);
+            border-radius: 6px;
+        }
+        
+        .swagger-ui .btn.execute:hover {
+            background-color: var(--primary-hover);
+        }
+        
+        .swagger-ui .opblock-summary-method {
+            border-radius: 4px;
+        }
+        
+        .swagger-ui .opblock.opblock-post .opblock-summary-method {
+            background: var(--primary);
+        }
+        
+        .swagger-ui .topbar {
+            display: none;
+        }
+        
+        #swagger-ui {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        @media (max-width: 768px) {
+            .hero {
+                padding: 4rem 1rem;
+            }
+            
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .hero p {
+                font-size: 1.125rem;
+            }
+            
+            .features {
+                gap: 1rem;
+            }
+            
+            .feature-card {
+                padding: 1.5rem;
+            }
+            
+            .metric {
+                font-size: 2rem;
+            }
+            
+            .benefits {
+                padding: 2rem 1rem;
+            }
+            
+            .benefits ul {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+            
+            .feature-card h3 {
+                font-size: 1.25rem;
+            }
+        }
+        
+        [role="button"].contrast {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+        
+        [role="button"].contrast:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <section class="hero">
+            <h1>RapidShield Email Validator 2025</h1>
+            <p>Simple, affordable, and reliable email validation API for developers and startups</p>
+            <a href="#api-docs" role="button" class="contrast">View API Documentation</a>
+        </section>
+
+        <section class="features">
+            <div class="feature-card">
+                <h3>⚡ Lightning Fast</h3>
+                <div class="metric">25ms</div>
+                <p>Quick response times to keep your apps snappy</p>
+            </div>
+            <div class="feature-card">
+                <h3>🛡️ Privacy First</h3>
+                <div class="metric">0 DB</div>
+                <p>Zero data storage - your emails are never saved! GDPR, CCPA, and PIPEDA compliant</p>
+            </div>
+            <div class="feature-card">
+                <h3>💰 Pay as you go</h3>
+                <div class="metric">100%</div>
+                <p>Refund the unused credits, no hidden fees, no subscription!</p>
+            </div>
+            <div class="feature-card">
+                <h3>📦 Batch Ready</h3>
+                <div class="metric">100x</div>
+                <p>Validate up to 100 emails at once</p>
+            </div>
+            <div class="feature-card">
+                <h3>🗑️ Disposable email detection</h3>
+                <div class="metric">100%</div>
+                <p>Detect if an email is disposable</p>
+            </div>
+            <div class="feature-card">
+                <h3>🔍 Domain & MX record detection</h3>
+                <div class="metric">100%</div>
+                <p>Detect if domain is valid and has a mail box</p>
+            </div>
+        </section>
+
+        <section class="benefits">
+            <h2>Built for Everyone</h2>
+            <ul>
+                <li>Affordable fixed pricing</li>
+                <li>No subscription</li>
+                <li>Refund the unused credits</li>
+                <li>Disposable email detection</li>
+                <li>Domain detection</li>
+                <li>MX record detection</li>
+                <li>Typo suggestions</li>
+                <li>Batch validation</li>
+                <li>Role detection</li>
+                <li>No data storage</li>
+                <li>No tracking</li>
+                <li>GDPR, CCPA, and PIPEDA compliant</li>
+                <li>Quick integration</li>
+                <li>Clear documentation</li>
+                <li>Simple REST API</li>
+                <li>Most up to date email hosts database</li>
+            </ul>
+        </section>
+
+        <section class="api-spec" id="api-docs">
+            <h2>API Documentation</h2>
+            <div id="swagger-ui"></div>
+        </section>
+
+        <footer>
+            <p>© 2025 RapidShield Email Validator. All rights reserved.</p>
+        </footer>
+    </main>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js"></script>
+    <script>
+        const spec = {
+            "openapi": "3.1.0",
+            "info": {
+                "title": "RapidShield Email Validator 2025 API",
+                "description": "API for validating email addresses, checking for disposable domains, and providing typo suggestions. Supports both single and batch validation.",
+                "version": "1.0.0",
+                "contact": {
+                    "name": "RapidShield Email Validator 2025 Support"
+                }
+            },
+            "servers": [
+                {
+                    "url": "/api",
+                    "description": "API Server"
+                }
+            ],
+            "paths": {
+                "/validate": {
+                    "get": {
+                        "summary": "Validate a single email address",
+                        "description": "Validates an email address and returns detailed information about its validity",
+                        "parameters": [
+                            {
+                                "name": "email",
+                                "in": "query",
+                                "required": true,
+                                "schema": {
+                                    "type": "string",
+                                    "format": "email"
+                                }
+                            }
+                        ],
+                        "responses": {
+                            "200": {
+                                "description": "Successful validation",
+                                "content": {
+                                    "application/json": {
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "is_valid": {
+                                                    "type": "boolean"
+                                                },
+                                                "is_disposable": {
+                                                    "type": "boolean"
+                                                },
+                                                "has_mx_record": {
+                                                    "type": "boolean"
+                                                },
+                                                "suggestion": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "400": {
+                                "description": "Invalid request",
+                                "content": {
+                                    "application/json": {
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "error": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "post": {
+                        "summary": "Validate a single email address",
+                        "description": "Validates an email address and returns detailed information about its validity",
+                        "requestBody": {
+                            "required": true,
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["email"],
+                                        "properties": {
+                                            "email": {
+                                                "type": "string",
+                                                "format": "email",
+                                                "example": "user@example.com"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "responses": {
+                            "200": {
+                                "description": "Successful validation",
+                                "content": {
+                                    "application/json": {
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "is_valid": {
+                                                    "type": "boolean"
+                                                },
+                                                "is_disposable": {
+                                                    "type": "boolean"
+                                                },
+                                                "has_mx_record": {
+                                                    "type": "boolean"
+                                                },
+                                                "suggestion": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "/validate/batch": {
+                    "get": {
+                        "summary": "Validate multiple email addresses",
+                        "description": "Validates multiple email addresses in a single request",
+                        "parameters": [
+                            {
+                                "name": "email",
+                                "in": "query",
+                                "required": true,
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string",
+                                        "format": "email"
+                                    }
+                                },
+                                "style": "form",
+                                "explode": true
+                            }
+                        ],
+                        "responses": {
+                            "200": {
+                                "description": "Successful batch validation",
+                                "content": {
+                                    "application/json": {
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "results": {
+                                                    "type": "object",
+                                                    "additionalProperties": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "is_valid": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "is_disposable": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "has_mx_record": {
+                                                                "type": "boolean"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "post": {
+                        "summary": "Validate multiple email addresses",
+                        "description": "Validates multiple email addresses in a single request",
+                        "requestBody": {
+                            "required": true,
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["emails"],
+                                        "properties": {
+                                            "emails": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string",
+                                                    "format": "email"
+                                                },
+                                                "maxItems": 100,
+                                                "example": ["user1@example.com", "user2@example.com"]
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "responses": {
+                            "200": {
+                                "description": "Successful batch validation"
+                            }
+                        }
+                    }
+                },
+                "/status": {
+                    "get": {
+                        "summary": "Get service status",
+                        "description": "Returns the current status of the email validation service",
+                        "responses": {
+                            "200": {
+                                "description": "Service status",
+                                "content": {
+                                    "application/json": {
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "type": "string",
+                                                    "enum": ["ok", "degraded", "maintenance"]
+                                                },
+                                                "version": {
+                                                    "type": "string"
+                                                },
+                                                "uptime": {
+                                                    "type": "number",
+                                                    "description": "Service uptime in seconds"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "/typo-suggestions": {
+                    "get": {
+                        "summary": "Get typo suggestions for an email address",
+                        "parameters": [
+                            {
+                                "name": "email",
+                                "in": "query",
+                                "required": true,
+                                "schema": {
+                                    "type": "string",
+                                    "format": "email"
+                                }
+                            }
+                        ],
+                        "responses": {
+                            "200": {
+                                "description": "Successful suggestion generation"
+                            }
+                        }
+                    }
+                }
+            },
+            "components": {
+                "securitySchemes": {
+                    "RapidAPISecret": {
+                        "type": "apiKey",
+                        "in": "header",
+                        "name": "X-RapidAPI-Secret"
+                    }
+                }
+            },
+            "security": [
+                {
+                    "RapidAPISecret": []
+                }
+            ]
+        };
+
+        window.onload = () => {
+            SwaggerUIBundle({
+                spec: spec,
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIBundle.SwaggerUIStandalonePreset
+                ],
+                layout: "BaseLayout",
+                docExpansion: "list",
+                defaultModelsExpandDepth: -1,
+                displayRequestDuration: true,
+                filter: true,
+                tryItOutEnabled: true
+            });
+        };
+    </script>
+</body>
+</html> 
