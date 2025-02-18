@@ -36,7 +36,10 @@ func getTestServer(t *testing.T) *httptest.Server {
 	testServerOnce.Do(func() {
 		// Create mock cache and validator
 		mockCache := cache.NewMockCache()
-		emailValidator := validator.NewEmailValidator()
+		emailValidator, err := validator.NewEmailValidator()
+		if err != nil {
+			t.Fatalf("Failed to create validator: %v", err)
+		}
 
 		// Create a new service with mock dependencies
 		emailService := service.NewEmailServiceWithDeps(mockCache, emailValidator)

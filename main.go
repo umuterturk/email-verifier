@@ -29,7 +29,10 @@ func main() {
 	}
 
 	// Create service instances with Redis cache
-	emailService := service.NewEmailServiceWithCache(redisCache)
+	emailService, err := service.NewEmailServiceWithCache(redisCache)
+	if err != nil {
+		log.Fatalf("Failed to initialize email service: %v", err)
+	}
 
 	// Create and configure HTTP handler
 	handler := api.NewHandler(emailService)

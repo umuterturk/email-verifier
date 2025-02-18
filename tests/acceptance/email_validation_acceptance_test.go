@@ -27,7 +27,10 @@ func setupAcceptanceTestServer(t *testing.T) *acceptanceTestServer {
 	mockCache := cache.NewMockCache()
 
 	// Create service instances with mock cache
-	emailService := service.NewEmailServiceWithCache(mockCache)
+	emailService, err := service.NewEmailServiceWithCache(mockCache)
+	if err != nil {
+		t.Fatalf("Failed to create email service: %v", err)
+	}
 
 	// Create and configure HTTP handler
 	handler := api.NewHandler(emailService)

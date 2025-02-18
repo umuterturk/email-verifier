@@ -14,27 +14,38 @@ type EmailValidator struct {
 }
 
 // NewEmailValidator creates a new instance of EmailValidator
-func NewEmailValidator() *EmailValidator {
+func NewEmailValidator() (*EmailValidator, error) {
 	cacheManager := NewDomainCacheManager(time.Hour)
 	resolver := &DefaultResolver{timeout: 2 * time.Second}
 
+	disposableValidator, err := NewDisposableValidator()
+	if err != nil {
+		return nil, err
+	}
+
 	return &EmailValidator{
 		syntaxValidator:     NewSyntaxValidator(),
 		domainValidator:     NewDomainValidator(resolver, cacheManager),
 		roleValidator:       NewRoleValidator(),
-		disposableValidator: NewDisposableValidator(),
-	}
+		disposableValidator: disposableValidator,
+	}, nil
 }
 
 // NewEmailValidatorWithResolver creates a new instance of EmailValidator with a custom resolver
-func NewEmailValidatorWithResolver(resolver DNSResolver) *EmailValidator {
+func NewEmailValidatorWithResolver(resolver DNSResolver) (*EmailValidator, error) {
 	cacheManager := NewDomainCacheManager(time.Hour)
+
+	disposableValidator, err := NewDisposableValidator()
+	if err != nil {
+		return nil, err
+	}
+
 	return &EmailValidator{
 		syntaxValidator:     NewSyntaxValidator(),
 		domainValidator:     NewDomainValidator(resolver, cacheManager),
 		roleValidator:       NewRoleValidator(),
-		disposableValidator: NewDisposableValidator(),
-	}
+		disposableValidator: disposableValidator,
+	}, nil
 }
 
 // SetResolver allows changing the DNS resolver

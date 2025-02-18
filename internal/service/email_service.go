@@ -27,12 +27,12 @@ type EmailService struct {
 }
 
 // NewEmailService creates a new instance of EmailService
-func NewEmailService() *EmailService {
+func NewEmailService() (*EmailService, error) {
 	return NewEmailServiceWithCache(nil)
 }
 
 // NewEmailServiceWithCache creates a new instance of EmailService with a specific cache implementation
-func NewEmailServiceWithCache(cacheImpl cache.Cache) *EmailService {
+func NewEmailServiceWithCache(cacheImpl cache.Cache) (*EmailService, error) {
 	if cacheImpl == nil {
 		redisCache, err := cache.NewRedisCache("localhost:6379")
 		if err != nil {
@@ -42,12 +42,17 @@ func NewEmailServiceWithCache(cacheImpl cache.Cache) *EmailService {
 		cacheImpl = redisCache
 	}
 
+	validator, err := validator.NewEmailValidator()
+	if err != nil {
+		return nil, err
+	}
+
 	return &EmailService{
-		validator: validator.NewEmailValidator(),
+		validator: validator,
 		cache:     cacheImpl,
 		startTime: time.Now(),
 		workers:   runtime.NumCPU(), // Use number of CPU cores for worker count
-	}
+	}, nil
 }
 
 // NewEmailServiceWithDeps creates a new instance of EmailService with custom dependencies

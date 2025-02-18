@@ -40,11 +40,10 @@ func LoadDisposableDomainsFromFile(path string) ([]string, error) {
 }
 
 // NewDisposableValidatorFromFile creates a new instance of DisposableValidator using domains from a file
-func NewDisposableValidatorFromFile(path string) *DisposableValidator {
+func NewDisposableValidatorFromFile(path string) (*DisposableValidator, error) {
 	domains, err := LoadDisposableDomainsFromFile(path)
 	if err != nil {
-		log.Printf("Warning: Could not load disposable domains from file: %v", err)
-		return NewDisposableValidator() // Fall back to default domains
+		return nil, err
 	}
-	return NewDisposableValidatorWithDomains(domains)
+	return NewDisposableValidatorWithReader(NewStaticDomainReader(domains))
 }

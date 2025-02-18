@@ -75,7 +75,10 @@ func TestServiceValidateEmail(t *testing.T) {
 	mockResolver := &mockDNSResolver{
 		delay: 10 * time.Millisecond, // Add a realistic network delay
 	}
-	emailValidator := validator.NewEmailValidatorWithResolver(mockResolver)
+	emailValidator, err := validator.NewEmailValidatorWithResolver(mockResolver)
+	if err != nil {
+		t.Fatalf("Failed to create validator: %v", err)
+	}
 	emailService := service.NewEmailServiceWithDeps(mockCache, emailValidator)
 
 	for _, tt := range tests {
@@ -122,7 +125,10 @@ func TestServiceValidateEmails(t *testing.T) {
 	mockResolver := &mockDNSResolver{
 		delay: 10 * time.Millisecond, // Add a realistic network delay
 	}
-	emailValidator := validator.NewEmailValidatorWithResolver(mockResolver)
+	emailValidator, err := validator.NewEmailValidatorWithResolver(mockResolver)
+	if err != nil {
+		t.Fatalf("Failed to create validator: %v", err)
+	}
 	emailService := service.NewEmailServiceWithDeps(mockCache, emailValidator)
 
 	for _, tt := range tests {
@@ -161,7 +167,10 @@ func TestServiceGetTypoSuggestions(t *testing.T) {
 	mockResolver := &mockDNSResolver{
 		delay: 10 * time.Millisecond, // Add a realistic network delay
 	}
-	emailValidator := validator.NewEmailValidatorWithResolver(mockResolver)
+	emailValidator, err := validator.NewEmailValidatorWithResolver(mockResolver)
+	if err != nil {
+		t.Fatalf("Failed to create validator: %v", err)
+	}
 	emailService := service.NewEmailServiceWithDeps(mockCache, emailValidator)
 
 	for _, tt := range tests {
@@ -185,7 +194,10 @@ func TestServiceGetAPIStatus(t *testing.T) {
 	mockResolver := &mockDNSResolver{
 		delay: 10 * time.Millisecond, // Add a realistic network delay
 	}
-	emailValidator := validator.NewEmailValidatorWithResolver(mockResolver)
+	emailValidator, err := validator.NewEmailValidatorWithResolver(mockResolver)
+	if err != nil {
+		t.Fatalf("Failed to create validator: %v", err)
+	}
 	emailService := service.NewEmailServiceWithDeps(mockCache, emailValidator)
 
 	// Validate initial state
@@ -217,7 +229,10 @@ func TestServiceParallelBatchValidation(t *testing.T) {
 	mockResolver := &mockDNSResolver{
 		delay: 10 * time.Millisecond, // Add a realistic network delay
 	}
-	emailValidator := validator.NewEmailValidatorWithResolver(mockResolver)
+	emailValidator, err := validator.NewEmailValidatorWithResolver(mockResolver)
+	if err != nil {
+		t.Fatalf("Failed to create validator: %v", err)
+	}
 	emailService := service.NewEmailServiceWithDeps(mockCache, emailValidator)
 
 	// Create a larger batch of emails with mixed domains
@@ -289,7 +304,10 @@ func TestServiceBatchValidationEdgeCases(t *testing.T) {
 	mockResolver := &mockDNSResolver{
 		delay: 10 * time.Millisecond, // Add a realistic network delay
 	}
-	emailValidator := validator.NewEmailValidatorWithResolver(mockResolver)
+	emailValidator, err := validator.NewEmailValidatorWithResolver(mockResolver)
+	if err != nil {
+		t.Fatalf("Failed to create validator: %v", err)
+	}
 	emailService := service.NewEmailServiceWithDeps(mockCache, emailValidator)
 
 	tests := []struct {
@@ -350,7 +368,10 @@ func TestServiceEmailValidationErrorScenarios(t *testing.T) {
 	errorCache := &mockErrorCache{
 		err: fmt.Errorf("cache error"),
 	}
-	emailService := service.NewEmailServiceWithCache(errorCache)
+	emailService, err := service.NewEmailServiceWithCache(errorCache)
+	if err != nil {
+		t.Fatalf("Failed to create email service: %v", err)
+	}
 
 	tests := []struct {
 		name        string

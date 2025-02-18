@@ -42,7 +42,10 @@ func TestValidateSyntax(t *testing.T) {
 		},
 	}
 
-	validator := validator.NewEmailValidator()
+	validator, err := validator.NewEmailValidator()
+	if err != nil {
+		t.Fatalf("Failed to create validator: %v", err)
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -88,7 +91,10 @@ func TestIsRoleBased(t *testing.T) {
 		},
 	}
 
-	validator := validator.NewEmailValidator()
+	validator, err := validator.NewEmailValidator()
+	if err != nil {
+		t.Fatalf("Failed to create validator: %v", err)
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -129,7 +135,10 @@ func TestIsDisposable(t *testing.T) {
 		},
 	}
 
-	validator := validator.NewEmailValidator()
+	validator, err := validator.NewEmailValidator()
+	if err != nil {
+		t.Fatalf("Failed to create validator: %v", err)
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -175,7 +184,10 @@ func TestGetTypoSuggestions(t *testing.T) {
 		},
 	}
 
-	validator := validator.NewEmailValidator()
+	validator, err := validator.NewEmailValidator()
+	if err != nil {
+		t.Fatalf("Failed to create validator: %v", err)
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -235,7 +247,10 @@ func TestCalculateScore(t *testing.T) {
 		},
 	}
 
-	validator := validator.NewEmailValidator()
+	validator, err := validator.NewEmailValidator()
+	if err != nil {
+		t.Fatalf("Failed to create validator: %v", err)
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -347,7 +362,10 @@ func TestDomainValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			validator := validator.NewEmailValidator()
+			validator, err := validator.NewEmailValidator()
+			if err != nil {
+				t.Fatalf("Failed to create validator: %v", err)
+			}
 			mockResolver := NewMockResolver()
 			validator.SetResolver(mockResolver)
 			validator.SetCacheDuration(time.Millisecond * 100)
@@ -389,7 +407,10 @@ func TestDomainValidation(t *testing.T) {
 func TestCacheExpiration(t *testing.T) {
 	t.Parallel()
 
-	validator := validator.NewEmailValidator()
+	validator, err := validator.NewEmailValidator()
+	if err != nil {
+		t.Fatalf("Failed to create validator: %v", err)
+	}
 	mockResolver := NewMockResolver()
 	validator.SetResolver(mockResolver)
 	validator.SetCacheDuration(time.Millisecond * 50)
