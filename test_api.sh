@@ -188,7 +188,7 @@ print_header "Special Cases"
 
 # Disposable email - POST
 test_endpoint "Disposable email (POST)" \
-"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"user@tempmail.com\"}' ${SKIP_SECRET_HEADER}" \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"user@mailnator.com\"}' ${SKIP_SECRET_HEADER}" \
 "special_cases" \
 "DISPOSABLE"
 
