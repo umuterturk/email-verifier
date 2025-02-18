@@ -82,3 +82,4 @@ app.log*
 service.log* 
 
 .env
+.history/
