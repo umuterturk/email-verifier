@@ -14,7 +14,6 @@ import (
 	"emailvalidator/internal/middleware"
 	"emailvalidator/internal/model"
 	"emailvalidator/internal/service"
-	"emailvalidator/pkg/cache"
 	"emailvalidator/pkg/monitoring"
 	"emailvalidator/pkg/validator"
 )
@@ -34,15 +33,14 @@ func addRapidAPIHeaders(req *http.Request) {
 
 func getTestServer(t *testing.T) *httptest.Server {
 	testServerOnce.Do(func() {
-		// Create mock cache and validator
-		mockCache := cache.NewMockCache()
+		// Create validator
 		emailValidator, err := validator.NewEmailValidator()
 		if err != nil {
 			t.Fatalf("Failed to create validator: %v", err)
 		}
 
-		// Create a new service with mock dependencies
-		emailService := service.NewEmailServiceWithDeps(mockCache, emailValidator)
+		// Create a new service with dependencies
+		emailService := service.NewEmailServiceWithDeps(emailValidator)
 		handler := api.NewHandler(emailService)
 
 		// Create final mux that combines both authenticated and unauthenticated routes

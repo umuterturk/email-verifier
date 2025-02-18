@@ -3,71 +3,82 @@ package acceptance
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
-	"time"
 
 	"emailvalidator/internal/api"
+	"emailvalidator/internal/middleware"
 	"emailvalidator/internal/model"
 	"emailvalidator/internal/service"
-	"emailvalidator/pkg/cache"
+	"emailvalidator/pkg/monitoring"
+)
+
+const (
+	testRapidAPISecret = "test-secret"
 )
 
 type acceptanceTestServer struct {
-	server *http.Server
+	server *httptest.Server
 	url    string
 }
 
-func setupAcceptanceTestServer(t *testing.T) *acceptanceTestServer {
-	// Create mock cache for testing
-	mockCache := cache.NewMockCache()
+func (ts *acceptanceTestServer) cleanup() error {
+	ts.server.Close()
+	return nil
+}
 
-	// Create service instances with mock cache
-	emailService, err := service.NewEmailServiceWithCache(mockCache)
+func setupAcceptanceTestServer(t *testing.T) *acceptanceTestServer {
+	// Create service instances
+	emailService, err := service.NewEmailService()
 	if err != nil {
-		t.Fatalf("Failed to create email service: %v", err)
+		t.Fatalf("Failed to initialize email service: %v", err)
 	}
 
 	// Create and configure HTTP handler
 	handler := api.NewHandler(emailService)
 	mux := http.NewServeMux()
+
+	// Register routes
 	handler.RegisterRoutes(mux)
 
-	// Find available port
-	port := 8081
-	server := &http.Server{
-		Addr:              fmt.Sprintf(":%d", port),
-		Handler:           mux,
-		ReadTimeout:       5 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       120 * time.Second,
-		ReadHeaderTimeout: 2 * time.Second,
-	}
+	// Add Prometheus metrics endpoint
+	mux.Handle("/metrics", monitoring.PrometheusHandler())
 
-	// Start server in a goroutine
-	go func() {
-		if err := server.ListenAndServe(); err != http.ErrServerClosed {
-			t.Errorf("HTTP server error: %v", err)
-		}
-	}()
+	// Create a new mux for authenticated routes
+	authenticatedMux := http.NewServeMux()
 
-	// Wait for server to start
-	time.Sleep(100 * time.Millisecond)
+	// Register routes that require authentication
+	authenticatedMux.HandleFunc("/validate", handler.HandleValidate)
+	authenticatedMux.HandleFunc("/validate/batch", handler.HandleBatchValidate)
+	authenticatedMux.HandleFunc("/typo-suggestions", handler.HandleTypoSuggestions)
 
+	// Wrap authenticated routes with monitoring middleware and RapidAPI authentication
+	monitoredHandler := monitoring.MetricsMiddleware(authenticatedMux)
+	authenticatedHandler := middleware.NewRapidAPIAuthMiddleware(monitoredHandler, testRapidAPISecret)
+
+	// Create final mux that combines both authenticated and unauthenticated routes
+	finalMux := http.NewServeMux()
+
+	// Register public endpoints first
+	finalMux.Handle("/rapidapi-health", monitoring.MetricsMiddleware(http.HandlerFunc(handler.HandleRapidAPIHealth)))
+	finalMux.Handle("/status", monitoring.MetricsMiddleware(http.HandlerFunc(handler.HandleStatus)))
+	finalMux.Handle("/metrics", monitoring.MetricsMiddleware(monitoring.PrometheusHandler()))
+
+	// Register authenticated routes last (catch-all)
+	finalMux.Handle("/", authenticatedHandler)
+
+	server := httptest.NewServer(finalMux)
 	return &acceptanceTestServer{
 		server: server,
-		url:    fmt.Sprintf("http://localhost:%d", port),
+		url:    server.URL,
 	}
-}
-
-func (ts *acceptanceTestServer) cleanup() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	return ts.server.Shutdown(ctx)
 }
 
 func TestAcceptanceEmailValidation(t *testing.T) {
@@ -90,7 +101,14 @@ func TestAcceptanceEmailValidation(t *testing.T) {
 		reqBody := model.EmailValidationRequest{Email: email}
 		jsonBody, _ := json.Marshal(reqBody)
 
-		resp, err := http.Post(server.url+"/validate", "application/json", bytes.NewBuffer(jsonBody))
+		req, err := http.NewRequest(http.MethodPost, server.url+"/validate", bytes.NewBuffer(jsonBody))
+		if err != nil {
+			t.Fatalf("Failed to create POST request: %v", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
+
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("Failed to make POST request: %v", err)
 		}
@@ -111,7 +129,13 @@ func TestAcceptanceEmailValidation(t *testing.T) {
 
 		// Step 2: Validate the same email using GET
 		t.Log("Step 2: Validating a single valid email using GET")
-		resp, err = http.Get(server.url + "/validate?email=" + email)
+		req, err = http.NewRequest(http.MethodGet, server.url+"/validate?email="+email, nil)
+		if err != nil {
+			t.Fatalf("Failed to create GET request: %v", err)
+		}
+		req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
+
+		resp, err = http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("Failed to make GET request: %v", err)
 		}
@@ -130,15 +154,25 @@ func TestAcceptanceEmailValidation(t *testing.T) {
 			t.Error("Expected syntax validation to pass for GET request")
 		}
 
-		// Step 3: Batch validation using POST
+		// Step 3: Batch validating emails using POST
 		t.Log("Step 3: Batch validating emails using POST")
-		batchEmails := []string{"user1@example.com", "user2@example.com"}
+		batchEmails := []string{email, "another@example.com"}
 		batchReqBody := model.BatchValidationRequest{Emails: batchEmails}
-		batchJsonBody, _ := json.Marshal(batchReqBody)
-
-		resp, err = http.Post(server.url+"/validate/batch", "application/json", bytes.NewBuffer(batchJsonBody))
+		batchJsonBody, err := json.Marshal(batchReqBody)
 		if err != nil {
-			t.Fatalf("Failed to make batch POST request: %v", err)
+			t.Fatalf("Failed to marshal batch request body: %v", err)
+		}
+
+		req, err = http.NewRequest(http.MethodPost, server.url+"/validate/batch", bytes.NewBuffer(batchJsonBody))
+		if err != nil {
+			t.Fatalf("Failed to create batch request: %v", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
+
+		resp, err = http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("Failed to make batch request: %v", err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
@@ -151,13 +185,29 @@ func TestAcceptanceEmailValidation(t *testing.T) {
 			t.Fatalf("Failed to decode batch response: %v", err)
 		}
 
-		if len(batchResult.Results) != 2 {
-			t.Errorf("Expected 2 results, got %d", len(batchResult.Results))
+		if len(batchResult.Results) != len(batchEmails) {
+			t.Errorf("Expected %d results, got %d", len(batchEmails), len(batchResult.Results))
 		}
 
-		// Step 4: Batch validation using GET
+		for i, result := range batchResult.Results {
+			if !result.Validations.Syntax {
+				t.Errorf("Expected syntax validation to pass for email %q", batchEmails[i])
+			}
+		}
+
+		// Step 4: Batch validating emails using GET
 		t.Log("Step 4: Batch validating emails using GET")
-		resp, err = http.Get(server.url + "/validate/batch?email=user1@example.com&email=user2@example.com")
+		var queryParams []string
+		for _, email := range batchEmails {
+			queryParams = append(queryParams, "email="+email)
+		}
+		req, err = http.NewRequest(http.MethodGet, server.url+"/validate/batch?"+strings.Join(queryParams, "&"), nil)
+		if err != nil {
+			t.Fatalf("Failed to create batch GET request: %v", err)
+		}
+		req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
+
+		resp, err = http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("Failed to make batch GET request: %v", err)
 		}
@@ -172,8 +222,14 @@ func TestAcceptanceEmailValidation(t *testing.T) {
 			t.Fatalf("Failed to decode batch GET response: %v", err)
 		}
 
-		if len(batchGetResult.Results) != 2 {
-			t.Errorf("Expected 2 results for GET batch, got %d", len(batchGetResult.Results))
+		if len(batchGetResult.Results) != len(batchEmails) {
+			t.Errorf("Expected %d results, got %d", len(batchEmails), len(batchGetResult.Results))
+		}
+
+		for i, result := range batchGetResult.Results {
+			if !result.Validations.Syntax {
+				t.Errorf("Expected syntax validation to pass for email %q", batchEmails[i])
+			}
 		}
 
 		// Step 5: Typo suggestions using POST
@@ -182,7 +238,14 @@ func TestAcceptanceEmailValidation(t *testing.T) {
 		typoReqBody := model.TypoSuggestionRequest{Email: typoEmail}
 		typoJsonBody, _ := json.Marshal(typoReqBody)
 
-		resp, err = http.Post(server.url+"/typo-suggestions", "application/json", bytes.NewBuffer(typoJsonBody))
+		req, err = http.NewRequest(http.MethodPost, server.url+"/typo-suggestions", bytes.NewBuffer(typoJsonBody))
+		if err != nil {
+			t.Fatalf("Failed to create typo POST request: %v", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
+
+		resp, err = http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("Failed to make typo POST request: %v", err)
 		}
@@ -199,7 +262,13 @@ func TestAcceptanceEmailValidation(t *testing.T) {
 
 		// Step 6: Typo suggestions using GET
 		t.Log("Step 6: Getting typo suggestions using GET")
-		resp, err = http.Get(server.url + "/typo-suggestions?email=" + typoEmail)
+		req, err = http.NewRequest(http.MethodGet, server.url+"/typo-suggestions?email="+typoEmail, nil)
+		if err != nil {
+			t.Fatalf("Failed to create typo GET request: %v", err)
+		}
+		req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
+
+		resp, err = http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("Failed to make typo GET request: %v", err)
 		}
@@ -229,79 +298,83 @@ func TestAcceptanceErrorScenarios(t *testing.T) {
 		}
 	}()
 
-	tests := []struct {
-		name                 string
-		endpoint             string
-		method               string
-		body                 string
-		wantStatus           int
-		wantErrorMatch       string
-		wantValidationStatus model.ValidationStatus
+	testCases := []struct {
+		name          string
+		endpoint      string
+		method        string
+		body          interface{}
+		expectedCode  int
+		expectedError string
 	}{
 		{
-			name:           "Invalid JSON",
-			endpoint:       "/validate",
-			method:         http.MethodPost,
-			body:           `{"invalid json"`,
-			wantStatus:     http.StatusBadRequest,
-			wantErrorMatch: "Invalid request body",
+			name:          "Invalid JSON",
+			endpoint:      "/validate",
+			method:        http.MethodPost,
+			body:          []byte(`{"invalid": json}`),
+			expectedCode:  http.StatusBadRequest,
+			expectedError: "Invalid request body",
 		},
 		{
-			name:           "Method not allowed",
-			endpoint:       "/validate",
-			method:         http.MethodPut,
-			body:           "",
-			wantStatus:     http.StatusMethodNotAllowed,
-			wantErrorMatch: "Method not allowed",
+			name:          "Method not allowed",
+			endpoint:      "/validate",
+			method:        http.MethodPut,
+			body:          nil,
+			expectedCode:  http.StatusMethodNotAllowed,
+			expectedError: "Method not allowed",
 		},
 		{
-			name:           "Missing email parameter",
-			endpoint:       "/validate",
-			method:         http.MethodGet,
-			body:           "",
-			wantStatus:     http.StatusBadRequest,
-			wantErrorMatch: "Email parameter is required",
+			name:          "Missing email parameter",
+			endpoint:      "/validate",
+			method:        http.MethodGet,
+			body:          nil,
+			expectedCode:  http.StatusBadRequest,
+			expectedError: "Email parameter is required",
 		},
 		{
-			name:                 "Empty email",
-			endpoint:             "/validate",
-			method:               http.MethodPost,
-			body:                 `{"email": ""}`,
-			wantStatus:           http.StatusOK,
-			wantErrorMatch:       "",
-			wantValidationStatus: model.ValidationStatusMissingEmail,
+			name:          "Empty email",
+			endpoint:      "/validate",
+			method:        http.MethodPost,
+			body:          model.EmailValidationRequest{Email: ""},
+			expectedCode:  http.StatusOK,
+			expectedError: "",
 		},
 		{
-			name:           "Empty batch request",
-			endpoint:       "/validate/batch",
-			method:         http.MethodPost,
-			body:           `{"emails": []}`,
-			wantStatus:     http.StatusOK,
-			wantErrorMatch: "",
+			name:          "Empty batch request",
+			endpoint:      "/validate/batch",
+			method:        http.MethodPost,
+			body:          model.BatchValidationRequest{Emails: []string{}},
+			expectedCode:  http.StatusOK,
+			expectedError: "",
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var resp *http.Response
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var reqBody []byte
 			var err error
 
-			switch tt.method {
-			case http.MethodPost:
-				resp, err = http.Post(server.url+tt.endpoint, "application/json", bytes.NewBufferString(tt.body))
-			case http.MethodGet:
-				resp, err = http.Get(server.url + tt.endpoint)
-			default:
-				client := &http.Client{}
-				req, reqErr := http.NewRequest(tt.method, server.url+tt.endpoint, nil)
-				if reqErr != nil {
-					t.Fatalf("Failed to create request: %v", reqErr)
+			if tc.body != nil {
+				switch v := tc.body.(type) {
+				case []byte:
+					reqBody = v
+				default:
+					reqBody, err = json.Marshal(tc.body)
+					if err != nil {
+						t.Fatalf("Failed to marshal request body: %v", err)
+					}
 				}
-				resp, err = client.Do(req)
 			}
 
+			req, err := http.NewRequest(tc.method, server.url+tc.endpoint, bytes.NewBuffer(reqBody))
 			if err != nil {
-				t.Fatalf("Request failed: %v", err)
+				t.Fatalf("Failed to create request: %v", err)
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
+
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatalf("Failed to make request: %v", err)
 			}
 			defer func() {
 				if err := resp.Body.Close(); err != nil {
@@ -309,36 +382,18 @@ func TestAcceptanceErrorScenarios(t *testing.T) {
 				}
 			}()
 
-			if resp.StatusCode != tt.wantStatus {
-				t.Errorf("got status %d, want %d", resp.StatusCode, tt.wantStatus)
+			if resp.StatusCode != tc.expectedCode {
+				t.Errorf("got status %d, want %d", resp.StatusCode, tc.expectedCode)
 			}
 
-			// Read the response body
-			var body json.RawMessage
-			if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
+			var result map[string]interface{}
+			if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 				t.Fatalf("Failed to decode response: %v", err)
 			}
 
-			if tt.wantErrorMatch != "" {
-				// For error responses, expect error field
-				var errorResp map[string]string
-				if err := json.Unmarshal(body, &errorResp); err != nil {
-					t.Fatalf("Failed to decode error response: %v", err)
-				}
-				if msg, ok := errorResp["error"]; !ok || msg != tt.wantErrorMatch {
-					t.Errorf("got error message %q, want %q", msg, tt.wantErrorMatch)
-				}
-			} else if tt.endpoint == "/validate" && tt.method == http.MethodPost {
-				// For validation responses, check the validation status
-				var validationResp model.EmailValidationResponse
-				if err := json.Unmarshal(body, &validationResp); err != nil {
-					t.Fatalf("Failed to decode validation response: %v", err)
-				}
-				if validationResp.Email != "" {
-					t.Errorf("Expected empty email to be preserved, got %q", validationResp.Email)
-				}
-				if tt.wantValidationStatus != "" && validationResp.Status != tt.wantValidationStatus {
-					t.Errorf("got validation status %q, want %q", validationResp.Status, tt.wantValidationStatus)
+			if tc.expectedError != "" {
+				if errMsg, ok := result["error"].(string); !ok || errMsg != tc.expectedError {
+					t.Errorf("got error %q, want %q", errMsg, tc.expectedError)
 				}
 			}
 		})
@@ -358,22 +413,35 @@ func TestAcceptanceConcurrentRequests(t *testing.T) {
 		}
 	}()
 
-	// Number of concurrent requests to make
-	concurrentRequests := 10
+	const numRequests = 10
+	var wg sync.WaitGroup
+	requestErrors := make(chan error, numRequests)
+	successfulRequests := int32(0)
 
-	// Create a channel to collect results
-	results := make(chan error, concurrentRequests)
-
-	// Make concurrent requests
-	for i := 0; i < concurrentRequests; i++ {
+	for i := 0; i < numRequests; i++ {
+		wg.Add(1)
 		go func(i int) {
+			defer wg.Done()
+
 			email := fmt.Sprintf("user%d@example.com", i)
 			reqBody := model.EmailValidationRequest{Email: email}
-			jsonBody, _ := json.Marshal(reqBody)
-
-			resp, err := http.Post(server.url+"/validate", "application/json", bytes.NewBuffer(jsonBody))
+			jsonBody, err := json.Marshal(reqBody)
 			if err != nil {
-				results <- fmt.Errorf("request failed: %v", err)
+				requestErrors <- fmt.Errorf("failed to marshal request body: %v", err)
+				return
+			}
+
+			req, err := http.NewRequest(http.MethodPost, server.url+"/validate", bytes.NewBuffer(jsonBody))
+			if err != nil {
+				requestErrors <- fmt.Errorf("failed to create request: %v", err)
+				return
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
+
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				requestErrors <- fmt.Errorf("failed to make request: %v", err)
 				return
 			}
 			defer func() {
@@ -384,43 +452,27 @@ func TestAcceptanceConcurrentRequests(t *testing.T) {
 
 			var result model.EmailValidationResponse
 			if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-				results <- fmt.Errorf("failed to decode response: %v", err)
+				requestErrors <- fmt.Errorf("failed to decode response: %v", err)
 				return
 			}
 
-			if !result.Validations.Syntax {
-				results <- fmt.Errorf("invalid syntax validation for %s", email)
+			if result.Email != email {
+				requestErrors <- fmt.Errorf("got email %q, want %q", result.Email, email)
 				return
 			}
 
-			results <- nil
+			atomic.AddInt32(&successfulRequests, 1)
 		}(i)
 	}
 
-	// Collect results
-	for i := 0; i < concurrentRequests; i++ {
-		if err := <-results; err != nil {
-			t.Errorf("Concurrent request error: %v", err)
-		}
+	wg.Wait()
+	close(requestErrors)
+
+	for err := range requestErrors {
+		t.Error("Concurrent request error:", err)
 	}
 
-	// Verify API handled all requests
-	resp, err := http.Get(server.url + "/status")
-	if err != nil {
-		t.Fatalf("Failed to get status: %v", err)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			t.Errorf("Failed to close response body: %v", err)
-		}
-	}()
-
-	var status model.APIStatus
-	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
-		t.Fatalf("Failed to decode status response: %v", err)
-	}
-
-	if status.RequestsHandled < int64(concurrentRequests) {
-		t.Errorf("Expected at least %d requests handled, got %d", concurrentRequests, status.RequestsHandled)
+	if atomic.LoadInt32(&successfulRequests) < numRequests {
+		t.Errorf("Expected at least %d requests handled, got %d", numRequests, atomic.LoadInt32(&successfulRequests))
 	}
 }

@@ -4,7 +4,6 @@ package service
 
 import (
 	"context"
-	"log"
 	"runtime"
 	"strings"
 	"sync"
@@ -12,7 +11,6 @@ import (
 	"time"
 
 	"emailvalidator/internal/model"
-	"emailvalidator/pkg/cache"
 	"emailvalidator/pkg/monitoring"
 	"emailvalidator/pkg/validator"
 )
@@ -20,7 +18,6 @@ import (
 // EmailService handles email validation operations
 type EmailService struct {
 	validator *validator.EmailValidator
-	cache     cache.Cache
 	startTime time.Time
 	requests  int64
 	workers   int
@@ -28,20 +25,6 @@ type EmailService struct {
 
 // NewEmailService creates a new instance of EmailService
 func NewEmailService() (*EmailService, error) {
-	return NewEmailServiceWithCache(nil)
-}
-
-// NewEmailServiceWithCache creates a new instance of EmailService with a specific cache implementation
-func NewEmailServiceWithCache(cacheImpl cache.Cache) (*EmailService, error) {
-	if cacheImpl == nil {
-		redisCache, err := cache.NewRedisCache("localhost:6379")
-		if err != nil {
-			// Log the error but continue without cache
-			log.Printf("Failed to initialize Redis cache: %v", err)
-		}
-		cacheImpl = redisCache
-	}
-
 	validator, err := validator.NewEmailValidator()
 	if err != nil {
 		return nil, err
@@ -49,26 +32,15 @@ func NewEmailServiceWithCache(cacheImpl cache.Cache) (*EmailService, error) {
 
 	return &EmailService{
 		validator: validator,
-		cache:     cacheImpl,
 		startTime: time.Now(),
 		workers:   runtime.NumCPU(), // Use number of CPU cores for worker count
 	}, nil
 }
 
 // NewEmailServiceWithDeps creates a new instance of EmailService with custom dependencies
-func NewEmailServiceWithDeps(cacheImpl cache.Cache, emailValidator *validator.EmailValidator) *EmailService {
-	if cacheImpl == nil {
-		redisCache, err := cache.NewRedisCache("localhost:6379")
-		if err != nil {
-			// Log the error but continue without cache
-			log.Printf("Failed to initialize Redis cache: %v", err)
-		}
-		cacheImpl = redisCache
-	}
-
+func NewEmailServiceWithDeps(emailValidator *validator.EmailValidator) *EmailService {
 	return &EmailService{
 		validator: emailValidator,
-		cache:     cacheImpl,
 		startTime: time.Now(),
 		workers:   runtime.NumCPU(), // Use number of CPU cores for worker count
 	}
@@ -77,17 +49,6 @@ func NewEmailServiceWithDeps(cacheImpl cache.Cache, emailValidator *validator.Em
 // ValidateEmail performs all validation checks on a single email
 func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse {
 	atomic.AddInt64(&s.requests, 1)
-
-	// Try to get from cache first
-	if s.cache != nil {
-		var cachedResponse model.EmailValidationResponse
-		err := s.cache.Get(context.Background(), "email:"+email, &cachedResponse)
-		if err == nil {
-			monitoring.RecordCacheHit("email_validation")
-			return cachedResponse
-		}
-		monitoring.RecordCacheMiss("email_validation")
-	}
 
 	response := model.EmailValidationResponse{
 		Email:       email,
@@ -151,15 +112,6 @@ func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse
 		response.Status = model.ValidationStatusProbablyValid
 	default:
 		response.Status = model.ValidationStatusInvalid
-	}
-
-	// Cache the result
-	if s.cache != nil {
-		// Cache for 24 hours
-		err := s.cache.Set(context.Background(), "email:"+email, response, 24*time.Hour)
-		if err != nil {
-			log.Printf("Failed to cache validation result: %v", err)
-		}
 	}
 
 	return response
@@ -262,18 +214,6 @@ func (s *EmailService) worker(jobs <-chan string, results chan<- model.EmailVali
 	defer cancel()
 
 	for email := range jobs {
-		// Try to get from cache first
-		if s.cache != nil {
-			var cachedResponse model.EmailValidationResponse
-			err := s.cache.Get(ctx, "email:"+email, &cachedResponse)
-			if err == nil {
-				monitoring.RecordCacheHit("email_validation")
-				results <- cachedResponse
-				continue
-			}
-			monitoring.RecordCacheMiss("email_validation")
-		}
-
 		// Perform validation
 		response := model.EmailValidationResponse{
 			Email:       email,
@@ -337,19 +277,6 @@ func (s *EmailService) worker(jobs <-chan string, results chan<- model.EmailVali
 			response.Status = model.ValidationStatusProbablyValid
 		default:
 			response.Status = model.ValidationStatusInvalid
-		}
-
-		// Cache the result asynchronously with timeout
-		if s.cache != nil {
-			go func(resp model.EmailValidationResponse) {
-				cacheCtx, cacheCancel := context.WithTimeout(context.Background(), 2*time.Second)
-				defer cacheCancel()
-
-				err := s.cache.Set(cacheCtx, "email:"+resp.Email, resp, 24*time.Hour)
-				if err != nil {
-					log.Printf("Failed to cache validation result: %v", err)
-				}
-			}(response)
 		}
 
 		results <- response

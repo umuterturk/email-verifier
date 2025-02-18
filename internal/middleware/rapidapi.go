@@ -2,6 +2,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 )
@@ -13,6 +14,7 @@ func NewRapidAPIAuthMiddleware(next http.Handler, proxySecret string) http.Handl
 	}
 
 	skipSecret := os.Getenv("RAPID_API_SKIP_SECRET")
+	fmt.Println("skipSecret", skipSecret)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check for bypass secret first

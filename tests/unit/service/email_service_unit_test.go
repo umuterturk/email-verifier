@@ -2,10 +2,8 @@
 package servicetest
 
 import (
-	"context"
 	"emailvalidator/internal/model"
 	"emailvalidator/internal/service"
-	"emailvalidator/pkg/cache"
 	"emailvalidator/pkg/validator"
 	"fmt"
 	"net"
@@ -71,7 +69,6 @@ func TestServiceValidateEmail(t *testing.T) {
 		},
 	}
 
-	mockCache := cache.NewMockCache()
 	mockResolver := &mockDNSResolver{
 		delay: 10 * time.Millisecond, // Add a realistic network delay
 	}
@@ -79,7 +76,7 @@ func TestServiceValidateEmail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create validator: %v", err)
 	}
-	emailService := service.NewEmailServiceWithDeps(mockCache, emailValidator)
+	emailService := service.NewEmailServiceWithDeps(emailValidator)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -121,7 +118,6 @@ func TestServiceValidateEmails(t *testing.T) {
 		},
 	}
 
-	mockCache := cache.NewMockCache()
 	mockResolver := &mockDNSResolver{
 		delay: 10 * time.Millisecond, // Add a realistic network delay
 	}
@@ -129,7 +125,7 @@ func TestServiceValidateEmails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create validator: %v", err)
 	}
-	emailService := service.NewEmailServiceWithDeps(mockCache, emailValidator)
+	emailService := service.NewEmailServiceWithDeps(emailValidator)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -163,7 +159,6 @@ func TestServiceGetTypoSuggestions(t *testing.T) {
 		},
 	}
 
-	mockCache := cache.NewMockCache()
 	mockResolver := &mockDNSResolver{
 		delay: 10 * time.Millisecond, // Add a realistic network delay
 	}
@@ -171,7 +166,7 @@ func TestServiceGetTypoSuggestions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create validator: %v", err)
 	}
-	emailService := service.NewEmailServiceWithDeps(mockCache, emailValidator)
+	emailService := service.NewEmailServiceWithDeps(emailValidator)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -190,7 +185,6 @@ func TestServiceGetTypoSuggestions(t *testing.T) {
 }
 
 func TestServiceGetAPIStatus(t *testing.T) {
-	mockCache := cache.NewMockCache()
 	mockResolver := &mockDNSResolver{
 		delay: 10 * time.Millisecond, // Add a realistic network delay
 	}
@@ -198,7 +192,7 @@ func TestServiceGetAPIStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create validator: %v", err)
 	}
-	emailService := service.NewEmailServiceWithDeps(mockCache, emailValidator)
+	emailService := service.NewEmailServiceWithDeps(emailValidator)
 
 	// Validate initial state
 	status := emailService.GetAPIStatus()
@@ -225,7 +219,6 @@ func TestServiceGetAPIStatus(t *testing.T) {
 }
 
 func TestServiceParallelBatchValidation(t *testing.T) {
-	mockCache := cache.NewMockCache()
 	mockResolver := &mockDNSResolver{
 		delay: 10 * time.Millisecond, // Add a realistic network delay
 	}
@@ -233,7 +226,7 @@ func TestServiceParallelBatchValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create validator: %v", err)
 	}
-	emailService := service.NewEmailServiceWithDeps(mockCache, emailValidator)
+	emailService := service.NewEmailServiceWithDeps(emailValidator)
 
 	// Create a larger batch of emails with mixed domains
 	batchSize := 100 // Reduced batch size for faster testing
@@ -250,11 +243,6 @@ func TestServiceParallelBatchValidation(t *testing.T) {
 	var totalParallel, totalSequential time.Duration
 
 	for run := 0; run < runs; run++ {
-		// Clear cache before each run
-		if err := mockCache.Close(); err != nil {
-			t.Fatalf("Failed to clear cache: %v", err)
-		}
-
 		start := time.Now()
 		result := emailService.ValidateEmails(emails)
 		parallelDuration := time.Since(start)
@@ -271,11 +259,6 @@ func TestServiceParallelBatchValidation(t *testing.T) {
 			if res.Email != expectedEmail {
 				t.Errorf("Result at position %d: expected email %s, got %s", i, expectedEmail, res.Email)
 			}
-		}
-
-		// Clear cache before sequential run
-		if err := mockCache.Close(); err != nil {
-			t.Fatalf("Failed to clear cache: %v", err)
 		}
 
 		// Time sequential execution
@@ -300,7 +283,6 @@ func TestServiceParallelBatchValidation(t *testing.T) {
 }
 
 func TestServiceBatchValidationEdgeCases(t *testing.T) {
-	mockCache := cache.NewMockCache()
 	mockResolver := &mockDNSResolver{
 		delay: 10 * time.Millisecond, // Add a realistic network delay
 	}
@@ -308,7 +290,7 @@ func TestServiceBatchValidationEdgeCases(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create validator: %v", err)
 	}
-	emailService := service.NewEmailServiceWithDeps(mockCache, emailValidator)
+	emailService := service.NewEmailServiceWithDeps(emailValidator)
 
 	tests := []struct {
 		name      string
@@ -365,13 +347,14 @@ func TestServiceBatchValidationEdgeCases(t *testing.T) {
 }
 
 func TestServiceEmailValidationErrorScenarios(t *testing.T) {
-	errorCache := &mockErrorCache{
-		err: fmt.Errorf("cache error"),
+	mockResolver := &mockDNSResolver{
+		delay: 10 * time.Millisecond, // Add a realistic network delay
 	}
-	emailService, err := service.NewEmailServiceWithCache(errorCache)
+	emailValidator, err := validator.NewEmailValidatorWithResolver(mockResolver)
 	if err != nil {
-		t.Fatalf("Failed to create email service: %v", err)
+		t.Fatalf("Failed to create validator: %v", err)
 	}
+	emailService := service.NewEmailServiceWithDeps(emailValidator)
 
 	tests := []struct {
 		name        string
@@ -381,12 +364,6 @@ func TestServiceEmailValidationErrorScenarios(t *testing.T) {
 		setupFunc   func()
 		cleanupFunc func()
 	}{
-		{
-			name:       "Cache error handling",
-			email:      "user@example.com",
-			wantStatus: model.ValidationStatusValid, // Should still validate even if cache fails
-			wantScore:  100,
-		},
 		{
 			name:       "Invalid UTF-8 in email",
 			email:      "user@example.com\xfe\xff",
@@ -427,25 +404,4 @@ func TestServiceEmailValidationErrorScenarios(t *testing.T) {
 			}
 		})
 	}
-}
-
-// mockErrorCache implements Cache interface and always returns an error
-type mockErrorCache struct {
-	err error
-}
-
-func (m *mockErrorCache) Get(ctx context.Context, key string, dest interface{}) error {
-	return m.err
-}
-
-func (m *mockErrorCache) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
-	return m.err
-}
-
-func (m *mockErrorCache) Delete(ctx context.Context, key string) error {
-	return m.err
-}
-
-func (m *mockErrorCache) Close() error {
-	return nil
 }

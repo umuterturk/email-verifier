@@ -7,10 +7,8 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - REDIS_URL=redis://redis:6379
       - PROMETHEUS_ENABLED=true
     depends_on:
-      - redis
       - prometheus
 
   prometheus:
@@ -37,14 +35,5 @@ services:
     depends_on:
       - prometheus
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    command: redis-server --save 60 1 --loglevel warning
-
 volumes:
-  grafana-storage: {}
-  redis-data: {} 
+  grafana-storage: {} 
