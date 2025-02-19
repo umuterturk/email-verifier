@@ -5,9 +5,11 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"emailvalidator/internal/model"
 	"emailvalidator/internal/service"
+	"emailvalidator/pkg/monitoring"
 )
 
 // Handler handles all HTTP requests
@@ -73,6 +75,9 @@ func (h *Handler) HandleValidate(w http.ResponseWriter, r *http.Request) {
 // HandleBatchValidate handles batch email validation requests
 func (h *Handler) HandleBatchValidate(w http.ResponseWriter, r *http.Request) {
 	var req model.BatchValidationRequest
+	start := time.Now()
+	monitoring.IncrementConcurrentBatches()
+	defer monitoring.DecrementConcurrentBatches()
 
 	switch r.Method {
 	case http.MethodGet:
@@ -93,6 +98,9 @@ func (h *Handler) HandleBatchValidate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := h.emailService.ValidateEmails(req.Emails)
+
+	// Record batch-specific metrics
+	monitoring.RecordBatchMetrics(len(req.Emails), time.Since(start))
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(result); err != nil {
