@@ -14,14 +14,9 @@ import (
 	"testing"
 
 	"emailvalidator/internal/api"
-	"emailvalidator/internal/middleware"
 	"emailvalidator/internal/model"
 	"emailvalidator/internal/service"
 	"emailvalidator/pkg/monitoring"
-)
-
-const (
-	testRapidAPISecret = "test-secret"
 )
 
 type acceptanceTestServer struct {
@@ -43,36 +38,23 @@ func setupAcceptanceTestServer(t *testing.T) *acceptanceTestServer {
 
 	// Create and configure HTTP handler
 	handler := api.NewHandler(emailService)
-	mux := http.NewServeMux()
 
-	// Register routes
-	handler.RegisterRoutes(mux)
-
-	// Add Prometheus metrics endpoint
-	mux.Handle("/metrics", monitoring.PrometheusHandler())
-
-	// Create a new mux for authenticated routes
-	authenticatedMux := http.NewServeMux()
-
-	// Register routes that require authentication
-	authenticatedMux.HandleFunc("/validate", handler.HandleValidate)
-	authenticatedMux.HandleFunc("/validate/batch", handler.HandleBatchValidate)
-	authenticatedMux.HandleFunc("/typo-suggestions", handler.HandleTypoSuggestions)
-
-	// Wrap authenticated routes with monitoring middleware and RapidAPI authentication
-	monitoredHandler := monitoring.MetricsMiddleware(authenticatedMux)
-	authenticatedHandler := middleware.NewRapidAPIAuthMiddleware(monitoredHandler, testRapidAPISecret)
-
-	// Create final mux that combines both authenticated and unauthenticated routes
+	// Create final mux for all routes
 	finalMux := http.NewServeMux()
 
-	// Register public endpoints first
-	finalMux.Handle("/rapidapi-health", monitoring.MetricsMiddleware(http.HandlerFunc(handler.HandleRapidAPIHealth)))
-	finalMux.Handle("/status", monitoring.MetricsMiddleware(http.HandlerFunc(handler.HandleStatus)))
-	finalMux.Handle("/metrics", monitoring.MetricsMiddleware(monitoring.PrometheusHandler()))
+	// Register API endpoints with monitoring
+	apiMux := http.NewServeMux()
+	apiMux.HandleFunc("/validate", handler.HandleValidate)
+	apiMux.HandleFunc("/validate/batch", handler.HandleBatchValidate)
+	apiMux.HandleFunc("/typo-suggestions", handler.HandleTypoSuggestions)
+	apiMux.HandleFunc("/status", handler.HandleStatus)
 
-	// Register authenticated routes last (catch-all)
-	finalMux.Handle("/", authenticatedHandler)
+	// Wrap API routes with monitoring
+	monitoredHandler := monitoring.MetricsMiddleware(apiMux)
+	finalMux.Handle("/api/", http.StripPrefix("/api", monitoredHandler))
+
+	// Register metrics endpoint
+	finalMux.Handle("/metrics", monitoring.MetricsMiddleware(monitoring.PrometheusHandler()))
 
 	server := httptest.NewServer(finalMux)
 	return &acceptanceTestServer{
@@ -101,12 +83,11 @@ func TestAcceptanceEmailValidation(t *testing.T) {
 		reqBody := model.EmailValidationRequest{Email: email}
 		jsonBody, _ := json.Marshal(reqBody)
 
-		req, err := http.NewRequest(http.MethodPost, server.url+"/validate", bytes.NewBuffer(jsonBody))
+		req, err := http.NewRequest(http.MethodPost, server.url+"/api/validate", bytes.NewBuffer(jsonBody))
 		if err != nil {
 			t.Fatalf("Failed to create POST request: %v", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -129,11 +110,10 @@ func TestAcceptanceEmailValidation(t *testing.T) {
 
 		// Step 2: Validate the same email using GET
 		t.Log("Step 2: Validating a single valid email using GET")
-		req, err = http.NewRequest(http.MethodGet, server.url+"/validate?email="+email, nil)
+		req, err = http.NewRequest(http.MethodGet, server.url+"/api/validate?email="+email, nil)
 		if err != nil {
 			t.Fatalf("Failed to create GET request: %v", err)
 		}
-		req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
 
 		resp, err = http.DefaultClient.Do(req)
 		if err != nil {
@@ -163,12 +143,11 @@ func TestAcceptanceEmailValidation(t *testing.T) {
 			t.Fatalf("Failed to marshal batch request body: %v", err)
 		}
 
-		req, err = http.NewRequest(http.MethodPost, server.url+"/validate/batch", bytes.NewBuffer(batchJsonBody))
+		req, err = http.NewRequest(http.MethodPost, server.url+"/api/validate/batch", bytes.NewBuffer(batchJsonBody))
 		if err != nil {
 			t.Fatalf("Failed to create batch request: %v", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
 
 		resp, err = http.DefaultClient.Do(req)
 		if err != nil {
@@ -201,11 +180,10 @@ func TestAcceptanceEmailValidation(t *testing.T) {
 		for _, email := range batchEmails {
 			queryParams = append(queryParams, "email="+email)
 		}
-		req, err = http.NewRequest(http.MethodGet, server.url+"/validate/batch?"+strings.Join(queryParams, "&"), nil)
+		req, err = http.NewRequest(http.MethodGet, server.url+"/api/validate/batch?"+strings.Join(queryParams, "&"), nil)
 		if err != nil {
 			t.Fatalf("Failed to create batch GET request: %v", err)
 		}
-		req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
 
 		resp, err = http.DefaultClient.Do(req)
 		if err != nil {
@@ -238,12 +216,11 @@ func TestAcceptanceEmailValidation(t *testing.T) {
 		typoReqBody := model.TypoSuggestionRequest{Email: typoEmail}
 		typoJsonBody, _ := json.Marshal(typoReqBody)
 
-		req, err = http.NewRequest(http.MethodPost, server.url+"/typo-suggestions", bytes.NewBuffer(typoJsonBody))
+		req, err = http.NewRequest(http.MethodPost, server.url+"/api/typo-suggestions", bytes.NewBuffer(typoJsonBody))
 		if err != nil {
 			t.Fatalf("Failed to create typo POST request: %v", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
 
 		resp, err = http.DefaultClient.Do(req)
 		if err != nil {
@@ -262,11 +239,10 @@ func TestAcceptanceEmailValidation(t *testing.T) {
 
 		// Step 6: Typo suggestions using GET
 		t.Log("Step 6: Getting typo suggestions using GET")
-		req, err = http.NewRequest(http.MethodGet, server.url+"/typo-suggestions?email="+typoEmail, nil)
+		req, err = http.NewRequest(http.MethodGet, server.url+"/api/typo-suggestions?email="+typoEmail, nil)
 		if err != nil {
 			t.Fatalf("Failed to create typo GET request: %v", err)
 		}
-		req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
 
 		resp, err = http.DefaultClient.Do(req)
 		if err != nil {
@@ -365,12 +341,11 @@ func TestAcceptanceErrorScenarios(t *testing.T) {
 				}
 			}
 
-			req, err := http.NewRequest(tc.method, server.url+tc.endpoint, bytes.NewBuffer(reqBody))
+			req, err := http.NewRequest(tc.method, server.url+"/api"+tc.endpoint, bytes.NewBuffer(reqBody))
 			if err != nil {
 				t.Fatalf("Failed to create request: %v", err)
 			}
 			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
 
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
@@ -431,13 +406,12 @@ func TestAcceptanceConcurrentRequests(t *testing.T) {
 				return
 			}
 
-			req, err := http.NewRequest(http.MethodPost, server.url+"/validate", bytes.NewBuffer(jsonBody))
+			req, err := http.NewRequest(http.MethodPost, server.url+"/api/validate", bytes.NewBuffer(jsonBody))
 			if err != nil {
 				requestErrors <- fmt.Errorf("failed to create request: %v", err)
 				return
 			}
 			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
 
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {

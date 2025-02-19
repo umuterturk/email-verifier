@@ -1,30 +1,23 @@
-// Package model provides the data structures and types used throughout the email validator service.
+// Package model defines the data structures used throughout the email validator service.
 // It defines the request/response models for the API endpoints and internal data representations.
 package model
 
-// ValidationStatus represents the status of email validation
+// ValidationStatus represents the status of an email validation
 type ValidationStatus string
 
+// Possible validation statuses
 const (
-	// ValidationStatusValid indicates the email is valid and deliverable
-	ValidationStatusValid ValidationStatus = "VALID"
-	// ValidationStatusProbablyValid indicates the email is probably valid but has some issues
+	ValidationStatusValid         ValidationStatus = "VALID"
 	ValidationStatusProbablyValid ValidationStatus = "PROBABLY_VALID"
-	// ValidationStatusInvalid indicates the email has significant validation issues
-	ValidationStatusInvalid ValidationStatus = "INVALID"
-	// ValidationStatusMissingEmail indicates no email was provided
-	ValidationStatusMissingEmail ValidationStatus = "MISSING_EMAIL"
-	// ValidationStatusInvalidFormat indicates invalid email format
+	ValidationStatusInvalid       ValidationStatus = "INVALID"
+	ValidationStatusMissingEmail  ValidationStatus = "MISSING_EMAIL"
 	ValidationStatusInvalidFormat ValidationStatus = "INVALID_FORMAT"
-	// ValidationStatusInvalidDomain indicates the domain does not exist
 	ValidationStatusInvalidDomain ValidationStatus = "INVALID_DOMAIN"
-	// ValidationStatusNoMXRecords indicates the domain cannot receive emails
-	ValidationStatusNoMXRecords ValidationStatus = "NO_MX_RECORDS"
-	// ValidationStatusDisposable indicates a disposable email address
-	ValidationStatusDisposable ValidationStatus = "DISPOSABLE"
+	ValidationStatusNoMXRecords   ValidationStatus = "NO_MX_RECORDS"
+	ValidationStatusDisposable    ValidationStatus = "DISPOSABLE"
 )
 
-// ValidationResults represents the results of various email validation checks
+// ValidationResults represents the results of various validation checks
 type ValidationResults struct {
 	Syntax        bool `json:"syntax"`
 	DomainExists  bool `json:"domain_exists"`
@@ -34,7 +27,7 @@ type ValidationResults struct {
 	IsRoleBased   bool `json:"is_role_based"`
 }
 
-// EmailValidationRequest represents a request to validate an email
+// EmailValidationRequest represents a request to validate a single email
 type EmailValidationRequest struct {
 	Email string `json:"email"`
 }
@@ -80,9 +73,4 @@ type APIStatus struct {
 type CreditInfo struct {
 	RemainingCredits int `json:"remaining_credits"`
 	TotalCredits     int `json:"total_credits"`
-}
-
-// RapidAPIHealth represents the health check response for RapidAPI
-type RapidAPIHealth struct {
-	Status string `json:"status"`
 }

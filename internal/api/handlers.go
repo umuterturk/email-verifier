@@ -28,7 +28,6 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/validate/batch", h.HandleBatchValidate)
 	mux.HandleFunc("/typo-suggestions", h.HandleTypoSuggestions)
 	mux.HandleFunc("/status", h.HandleStatus)
-	mux.HandleFunc("/rapidapi-health", h.HandleRapidAPIHealth)
 }
 
 // sendError sends a JSON error response
@@ -142,23 +141,6 @@ func (h *Handler) HandleStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(status); err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to encode response")
-	}
-}
-
-// HandleRapidAPIHealth handles RapidAPI health check requests
-func (h *Handler) HandleRapidAPIHealth(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
-	}
-
-	health := model.RapidAPIHealth{
-		Status: "OK",
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(health); err != nil {
 		sendError(w, http.StatusInternalServerError, "Failed to encode response")
 	}
 }

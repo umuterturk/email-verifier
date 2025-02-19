@@ -1,90 +1,11 @@
 openapi: 3.1.0
 info:
-  title: RapidShield Email Validator 2025 API
-  description: |
-    API for validating email addresses, checking for disposable domains, 
-    and providing typo suggestions. Supports both single and batch validation.
+  title: Email Validator API
   version: 1.0.0
-  contact:
-    name: RapidShield Email Validator 2025 Support
+  description: API for validating email addresses and providing suggestions for typos
+
 servers:
-  - url: https://fast-email-verifier.fly.dev
-    description: Production server
-  - url: http://localhost:8080
-    description: Local development
-
-security:
-  - RapidAPISecret: []
-
-components:
-  securitySchemes:
-    RapidAPISecret:
-      type: apiKey
-      in: header
-      name: X-RapidAPI-Secret
-      description: RapidAPI proxy secret for authentication
-
-  schemas:
-    EmailValidationRequest:
-      type: object
-      required:
-        - email
-      properties:
-        email:
-          type: string
-          format: email
-          example: "user@example.com"
-
-    BatchValidationRequest:
-      type: object
-      required:
-        - emails
-      properties:
-        emails:
-          type: array
-          items:
-            type: string
-            format: email
-          example: ["user1@example.com", "user2@example.com"]
-          maxItems: 100
-
-    ValidationResult:
-      type: object
-      properties:
-        is_valid:
-          type: boolean
-          description: Whether the email is valid according to syntax and DNS checks
-        is_disposable:
-          type: boolean
-          description: Whether the email domain is a known disposable/temporary email provider
-        has_mx_record:
-          type: boolean
-          description: Whether the email domain has valid MX records
-        domain:
-          type: string
-          description: The domain part of the email address
-        username:
-          type: string
-          description: The local part (username) of the email address
-        suggestion:
-          type: string
-          description: Suggested correction if a typo is detected
-          nullable: true
-
-    BatchValidationResponse:
-      type: object
-      properties:
-        results:
-          type: object
-          additionalProperties:
-            $ref: '#/components/schemas/ValidationResult'
-
-    Error:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Error message describing what went wrong
+  - url: /api
 
 paths:
   /validate:
@@ -164,7 +85,7 @@ paths:
           explode: true
       responses:
         '200':
-          description: Successful batch validation
+          description: Successful validation
           content:
             application/json:
               schema:
@@ -193,7 +114,7 @@ paths:
               $ref: '#/components/schemas/BatchValidationRequest'
       responses:
         '200':
-          description: Successful batch validation
+          description: Successful validation
           content:
             application/json:
               schema:
@@ -214,7 +135,7 @@ paths:
   /typo-suggestions:
     get:
       summary: Get typo suggestions for an email address
-      description: Analyzes an email address for potential typos and returns suggestions
+      description: Returns suggestions for possible typos in the email address
       parameters:
         - name: email
           in: query
@@ -224,16 +145,40 @@ paths:
             format: email
       responses:
         '200':
-          description: Successful suggestion generation
+          description: Successful operation
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  suggestions:
-                    type: array
-                    items:
-                      type: string
+                $ref: '#/components/schemas/TypoSuggestionResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    post:
+      summary: Get typo suggestions for an email address
+      description: Returns suggestions for possible typos in the email address
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TypoSuggestionRequest'
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TypoSuggestionResponse'
         '400':
           description: Invalid request
           content:
@@ -249,33 +194,137 @@ paths:
 
   /status:
     get:
-      summary: Get service status
-      description: Returns the current status of the email validation service
+      summary: Get API status
+      description: Returns the current status of the API
       responses:
         '200':
-          description: Service status
+          description: Successful operation
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    enum: [ok, degraded, maintenance]
-                  version:
-                    type: string
-                  uptime:
-                    type: number
-                    description: Service uptime in seconds
+                $ref: '#/components/schemas/APIStatus'
 
-  /metrics:
-    get:
-      summary: Get service metrics
-      description: Returns Prometheus metrics for monitoring
-      responses:
-        '200':
-          description: Prometheus metrics
-          content:
-            text/plain:
-              schema:
-                type: string 
+components:
+  schemas:
+    ValidationResult:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: The email address that was validated
+        validations:
+          type: object
+          properties:
+            syntax:
+              type: boolean
+              description: Whether the email has valid syntax
+            domain_exists:
+              type: boolean
+              description: Whether the domain exists
+            mx_records:
+              type: boolean
+              description: Whether the domain has valid MX records
+            mailbox_exists:
+              type: boolean
+              description: Whether the mailbox exists
+            is_disposable:
+              type: boolean
+              description: Whether the email is from a disposable provider
+            is_role_based:
+              type: boolean
+              description: Whether the email is a role-based address
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Overall validation score
+        status:
+          type: string
+          enum:
+            - VALID
+            - PROBABLY_VALID
+            - INVALID
+            - MISSING_EMAIL
+            - INVALID_FORMAT
+            - INVALID_DOMAIN
+            - NO_MX_RECORDS
+            - DISPOSABLE
+          description: Validation status
+
+    EmailValidationRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          description: The email address to validate
+
+    BatchValidationRequest:
+      type: object
+      required:
+        - emails
+      properties:
+        emails:
+          type: array
+          items:
+            type: string
+            format: email
+          description: List of email addresses to validate
+
+    BatchValidationResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationResult'
+          description: List of validation results
+
+    TypoSuggestionRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          description: The email address to check for typos
+
+    TypoSuggestionResponse:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: The original email address
+        suggestions:
+          type: array
+          items:
+            type: string
+          description: List of suggested corrections
+
+    APIStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Current status of the API
+        uptime:
+          type: string
+          description: Time since the API started
+        requests_handled:
+          type: integer
+          description: Total number of requests handled
+        average_response_time_ms:
+          type: number
+          description: Average response time in milliseconds
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message describing what went wrong 

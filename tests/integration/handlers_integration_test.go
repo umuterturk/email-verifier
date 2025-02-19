@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"emailvalidator/internal/api"
-	"emailvalidator/internal/middleware"
 	"emailvalidator/internal/model"
 	"emailvalidator/internal/service"
 	"emailvalidator/pkg/monitoring"
@@ -22,14 +21,6 @@ var (
 	testServer     *httptest.Server
 	testServerOnce sync.Once
 )
-
-const (
-	testRapidAPISecret = "test-secret"
-)
-
-func addRapidAPIHeaders(req *http.Request) {
-	req.Header.Set("X-RapidAPI-Secret", testRapidAPISecret)
-}
 
 func getTestServer(t *testing.T) *httptest.Server {
 	testServerOnce.Do(func() {
@@ -43,26 +34,22 @@ func getTestServer(t *testing.T) *httptest.Server {
 		emailService := service.NewEmailServiceWithDeps(emailValidator)
 		handler := api.NewHandler(emailService)
 
-		// Create final mux that combines both authenticated and unauthenticated routes
+		// Create final mux for all routes
 		finalMux := http.NewServeMux()
 
-		// Register public endpoints first
-		finalMux.Handle("/rapidapi-health", monitoring.MetricsMiddleware(http.HandlerFunc(handler.HandleRapidAPIHealth)))
-		finalMux.Handle("/status", monitoring.MetricsMiddleware(http.HandlerFunc(handler.HandleStatus)))
+		// Register API endpoints with monitoring
+		apiMux := http.NewServeMux()
+		apiMux.HandleFunc("/validate", handler.HandleValidate)
+		apiMux.HandleFunc("/validate/batch", handler.HandleBatchValidate)
+		apiMux.HandleFunc("/typo-suggestions", handler.HandleTypoSuggestions)
+		apiMux.HandleFunc("/status", handler.HandleStatus)
+
+		// Wrap API routes with monitoring
+		monitoredHandler := monitoring.MetricsMiddleware(apiMux)
+		finalMux.Handle("/api/", http.StripPrefix("/api", monitoredHandler))
+
+		// Register metrics endpoint
 		finalMux.Handle("/metrics", monitoring.MetricsMiddleware(monitoring.PrometheusHandler()))
-
-		// Create authenticated routes
-		authenticatedMux := http.NewServeMux()
-		authenticatedMux.HandleFunc("/validate", handler.HandleValidate)
-		authenticatedMux.HandleFunc("/validate/batch", handler.HandleBatchValidate)
-		authenticatedMux.HandleFunc("/typo-suggestions", handler.HandleTypoSuggestions)
-
-		// Wrap authenticated routes with monitoring middleware and RapidAPI authentication
-		monitoredHandler := monitoring.MetricsMiddleware(authenticatedMux)
-		authenticatedHandler := middleware.NewRapidAPIAuthMiddleware(monitoredHandler, testRapidAPISecret)
-
-		// Register authenticated routes last (catch-all)
-		finalMux.Handle("/", authenticatedHandler)
 
 		testServer = httptest.NewServer(finalMux)
 	})
@@ -138,18 +125,17 @@ func TestHandleValidate(t *testing.T) {
 			case http.MethodPost:
 				reqBody := model.EmailValidationRequest{Email: tt.email}
 				jsonBody, _ := json.Marshal(reqBody)
-				req, err := http.NewRequest(http.MethodPost, server.URL+"/validate", bytes.NewBuffer(jsonBody))
+				req, err := http.NewRequest(http.MethodPost, server.URL+"/api/validate", bytes.NewBuffer(jsonBody))
 				if err != nil {
 					t.Fatalf("Failed to create request: %v", err)
 				}
 				req.Header.Set("Content-Type", "application/json")
-				addRapidAPIHeaders(req)
 				resp, err = client.Do(req)
 				if err != nil {
 					t.Fatalf("Failed to make request: %v", err)
 				}
 			case http.MethodGet:
-				req, err := http.NewRequest(http.MethodGet, server.URL+"/validate", nil)
+				req, err := http.NewRequest(http.MethodGet, server.URL+"/api/validate", nil)
 				if err != nil {
 					t.Fatalf("Failed to create request: %v", err)
 				}
@@ -158,17 +144,15 @@ func TestHandleValidate(t *testing.T) {
 					q.Add("email", tt.email)
 					req.URL.RawQuery = q.Encode()
 				}
-				addRapidAPIHeaders(req)
 				resp, err = client.Do(req)
 				if err != nil {
 					t.Fatalf("Failed to make request: %v", err)
 				}
 			default:
-				req, err := http.NewRequest(tt.method, server.URL+"/validate", nil)
+				req, err := http.NewRequest(tt.method, server.URL+"/api/validate", nil)
 				if err != nil {
 					t.Fatalf("Failed to create request: %v", err)
 				}
-				addRapidAPIHeaders(req)
 				resp, err = client.Do(req)
 				if err != nil {
 					t.Fatalf("Failed to make request: %v", err)
@@ -245,12 +229,11 @@ func TestHandleBatchValidate(t *testing.T) {
 			reqBody := model.BatchValidationRequest{Emails: tt.emails}
 			jsonBody, _ := json.Marshal(reqBody)
 
-			req, err := http.NewRequest(http.MethodPost, server.URL+"/validate/batch", bytes.NewBuffer(jsonBody))
+			req, err := http.NewRequest(http.MethodPost, server.URL+"/api/validate/batch", bytes.NewBuffer(jsonBody))
 			if err != nil {
 				t.Fatalf("Failed to create request: %v", err)
 			}
 			req.Header.Set("Content-Type", "application/json")
-			addRapidAPIHeaders(req)
 
 			resp, err := client.Do(req)
 			if err != nil {
@@ -321,12 +304,11 @@ func TestHandleTypoSuggestions(t *testing.T) {
 			reqBody := model.TypoSuggestionRequest{Email: tt.email}
 			jsonBody, _ := json.Marshal(reqBody)
 
-			req, err := http.NewRequest(http.MethodPost, server.URL+"/typo-suggestions", bytes.NewBuffer(jsonBody))
+			req, err := http.NewRequest(http.MethodPost, server.URL+"/api/typo-suggestions", bytes.NewBuffer(jsonBody))
 			if err != nil {
 				t.Fatalf("Failed to create request: %v", err)
 			}
 			req.Header.Set("Content-Type", "application/json")
-			addRapidAPIHeaders(req)
 
 			resp, err := client.Do(req)
 			if err != nil {
@@ -370,7 +352,7 @@ func TestHandleStatus(t *testing.T) {
 		Timeout: 2 * time.Second,
 	}
 
-	resp, err := client.Get(server.URL + "/status")
+	resp, err := client.Get(server.URL + "/api/status")
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
@@ -420,12 +402,11 @@ func TestInvalidJSON(t *testing.T) {
 				Timeout: 2 * time.Second,
 			}
 
-			req, err := http.NewRequest(http.MethodPost, server.URL+endpoint, bytes.NewBufferString("invalid json"))
+			req, err := http.NewRequest(http.MethodPost, server.URL+"/api"+endpoint, bytes.NewBufferString("invalid json"))
 			if err != nil {
 				t.Fatalf("Failed to create request: %v", err)
 			}
 			req.Header.Set("Content-Type", "application/json")
-			addRapidAPIHeaders(req)
 
 			resp, err := client.Do(req)
 			if err != nil {
@@ -460,17 +441,10 @@ func TestPublicEndpoints(t *testing.T) {
 	}{
 		{
 			name:           "Status endpoint",
-			endpoint:       "/status",
+			endpoint:       "/api/status",
 			method:         http.MethodGet,
 			wantStatus:     http.StatusOK,
 			wantBodyFields: []string{"status", "uptime", "requests_handled", "average_response_time_ms"},
-		},
-		{
-			name:           "RapidAPI health endpoint",
-			endpoint:       "/rapidapi-health",
-			method:         http.MethodGet,
-			wantStatus:     http.StatusOK,
-			wantBodyFields: []string{"status"},
 		},
 		{
 			name:       "Metrics endpoint",
@@ -480,13 +454,7 @@ func TestPublicEndpoints(t *testing.T) {
 		},
 		{
 			name:       "Status endpoint with POST",
-			endpoint:   "/status",
-			method:     http.MethodPost,
-			wantStatus: http.StatusMethodNotAllowed,
-		},
-		{
-			name:       "RapidAPI health with POST",
-			endpoint:   "/rapidapi-health",
+			endpoint:   "/api/status",
 			method:     http.MethodPost,
 			wantStatus: http.StatusMethodNotAllowed,
 		},
@@ -539,31 +507,6 @@ func TestPublicEndpoints(t *testing.T) {
 					if _, exists := body[field]; !exists {
 						t.Errorf("response body missing required field: %s", field)
 					}
-				}
-			}
-
-			// Verify no authentication headers are required
-			if resp.StatusCode == http.StatusOK {
-				// Make another request with invalid auth headers to ensure they're ignored
-				reqWithAuth, err := http.NewRequest(tt.method, server.URL+tt.endpoint, nil)
-				if err != nil {
-					t.Fatalf("Failed to create request with auth: %v", err)
-				}
-				reqWithAuth.Header.Set("X-RapidAPI-Key", "invalid-key")
-				reqWithAuth.Header.Set("X-RapidAPI-Secret", "invalid-secret")
-
-				respWithAuth, err := client.Do(reqWithAuth)
-				if err != nil {
-					t.Fatalf("Failed to make request with auth: %v", err)
-				}
-				defer func() {
-					if err := respWithAuth.Body.Close(); err != nil {
-						t.Errorf("Failed to close response body: %v", err)
-					}
-				}()
-
-				if respWithAuth.StatusCode != http.StatusOK {
-					t.Errorf("endpoint should ignore invalid auth headers, got status %d, want %d", respWithAuth.StatusCode, http.StatusOK)
 				}
 			}
 		})
