@@ -23,6 +23,7 @@ WORKDIR /app
 # Copy the binary and config
 COPY --from=builder /app/main .
 COPY --from=builder /app/config ./config
+COPY --from=builder /app/static ./static
 
 # Install ca-certificates for secure Redis connections
 RUN apk --no-cache add ca-certificates
