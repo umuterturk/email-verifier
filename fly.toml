@@ -38,6 +38,10 @@ primary_region = 'ams'
     hard_limit = 25
     soft_limit = 20
 
+[metrics]
+  port = 8080
+  path = "/metrics"
+
 [[vm]]
   memory = '1gb'
   cpu_kind = 'shared'
