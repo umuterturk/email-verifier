@@ -1,4 +1,4 @@
-# RapidShield Email Validator 2025 - Your Shield Against Bad Emails
+# Rapid Email Validator 2025 - Your Shield Against Bad Emails
 
 ## 🌟 What Sets Us Apart
 
