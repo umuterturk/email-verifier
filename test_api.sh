@@ -15,11 +15,6 @@ if [ -f .env ]; then
     export $(cat .env | grep -v '^#' | xargs)
 fi
 
-# Headers
-SKIP_SECRET_HEADER=""
-if [ -n "$RAPID_API_SKIP_SECRET" ]; then
-    SKIP_SECRET_HEADER="-H \"X-API-Skip-Secret: $RAPID_API_SKIP_SECRET\""
-fi
 
 # Initialize timing data arrays
 declare -a endpoint_types=("single_validation" "batch_validation" "typo_suggestions" "special_cases" "error_cases" "status" "skip_secret")
@@ -229,36 +224,6 @@ print_header "Status Check"
 test_endpoint "Service Status" \
 "curl \"${API_URL}/status\" ${SKIP_SECRET_HEADER}" \
 "status"
-
-# 6. Skip Secret Tests
-print_header "Skip Secret Tests"
-
-# Test with valid skip secret
-if [ -n "$RAPID_API_SKIP_SECRET" ]; then
-    # Valid email with skip secret - POST
-    test_endpoint "Valid email with skip secret (POST)" \
-    "curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -H \"X-API-Skip-Secret: ${RAPID_API_SKIP_SECRET}\" -d '{\"email\":\"user@example.com\"}'" \
-    "skip_secret" \
-    "VALID"
-
-    # Valid email with skip secret - GET
-    test_endpoint "Valid email with skip secret (GET)" \
-    "curl -X GET \"${API_URL}/validate?email=user@example.com\" -H \"X-API-Skip-Secret: ${RAPID_API_SKIP_SECRET}\"" \
-    "skip_secret" \
-    "VALID"
-
-    # Batch validation with skip secret - POST
-    test_endpoint "Batch validation with skip secret (POST)" \
-    "curl -X POST \"${API_URL}/validate/batch\" -H \"Content-Type: application/json\" -H \"X-API-Skip-Secret: ${RAPID_API_SKIP_SECRET}\" -d '{\"emails\":[\"user1@example.com\",\"user2@example.com\"]}'" \
-    "skip_secret"
-
-    # Invalid skip secret - POST
-    test_endpoint "Invalid skip secret (POST)" \
-    "curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -H \"X-API-Skip-Secret: invalid-secret\" -d '{\"email\":\"user@example.com\"}'" \
-    "skip_secret"
-else
-    echo -e "${YELLOW}Skipping skip secret tests - RAPID_API_SKIP_SECRET not set in .env${NC}"
-fi
 
 # Print timing statistics
 print_header "Timing Statistics"

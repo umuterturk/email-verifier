@@ -1,16 +1,19 @@
-package validator
+// Package validatortest contains unit tests for the validator package
+package validatortest
 
 import (
 	"testing"
+
+	"emailvalidator/pkg/validator"
 )
 
 func TestDisposableValidatorWithStaticReader(t *testing.T) {
 	// Create a static reader with test domains
 	testDomains := []string{"test.com", "disposable.com"}
-	reader := NewStaticDomainReader(testDomains)
+	reader := validator.NewStaticDomainReader(testDomains)
 
 	// Create validator with the test reader
-	validator, err := NewDisposableValidatorWithReader(reader)
+	v, err := validator.NewDisposableValidatorWithReader(reader)
 	if err != nil {
 		t.Fatalf("Failed to create validator: %v", err)
 	}
@@ -28,7 +31,7 @@ func TestDisposableValidatorWithStaticReader(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.domain, func(t *testing.T) {
-			got := validator.Validate(tt.domain)
+			got := v.Validate(tt.domain)
 			if got != tt.want {
 				t.Errorf("Validate(%q) = %v, want %v", tt.domain, got, tt.want)
 			}
@@ -38,10 +41,10 @@ func TestDisposableValidatorWithStaticReader(t *testing.T) {
 
 func TestDisposableValidatorWithFileReader(t *testing.T) {
 	// Create a file reader with the config file
-	reader := NewFileDomainReader("../../config/disposable_domains.txt")
+	reader := validator.NewFileDomainReader("../../../config/disposable_domains.txt")
 
 	// Create validator with the file reader
-	validator, err := NewDisposableValidatorWithReader(reader)
+	v, err := validator.NewDisposableValidatorWithReader(reader)
 	if err != nil {
 		t.Fatalf("Failed to create validator: %v", err)
 	}
@@ -59,7 +62,7 @@ func TestDisposableValidatorWithFileReader(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.domain, func(t *testing.T) {
-			got := validator.Validate(tt.domain)
+			got := v.Validate(tt.domain)
 			if got != tt.want {
 				t.Errorf("Validate(%q) = %v, want %v", tt.domain, got, tt.want)
 			}
@@ -67,7 +70,7 @@ func TestDisposableValidatorWithFileReader(t *testing.T) {
 	}
 }
 
-// MockDomainReader implements DomainReader interface for testing
+// MockDomainReader implements validator.DomainReader interface for testing
 type MockDomainReader struct {
 	domains []string
 	err     error
@@ -93,7 +96,7 @@ func TestDisposableValidatorWithMockReader(t *testing.T) {
 	mockReader := NewMockDomainReader(mockDomains, nil)
 
 	// Create validator with the mock reader
-	validator, err := NewDisposableValidatorWithReader(mockReader)
+	v, err := validator.NewDisposableValidatorWithReader(mockReader)
 	if err != nil {
 		t.Fatalf("Failed to create validator: %v", err)
 	}
@@ -110,7 +113,7 @@ func TestDisposableValidatorWithMockReader(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.domain, func(t *testing.T) {
-			got := validator.Validate(tt.domain)
+			got := v.Validate(tt.domain)
 			if got != tt.want {
 				t.Errorf("Validate(%q) = %v, want %v", tt.domain, got, tt.want)
 			}
