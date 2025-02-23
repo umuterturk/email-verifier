@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@800&display=swap" rel="stylesheet">
+    <style>
+        /* Common styles */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: transparent;
+        }
+
+        .icon-container {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            padding: 20px;
+        }
+
+        /* Apple Touch Icon (180x180) */
+        .apple-touch-icon {
+            width: 180px;
+            height: 180px;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+            border-radius: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            background-clip: padding-box;
+        }
+
+        .apple-touch-icon::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 50%);
+        }
+
+        .apple-touch-icon span {
+            font-size: 100px;
+            font-weight: 800;
+            color: white;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+        }
+
+        /* Favicon (32x32) */
+        .favicon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            background-clip: padding-box;
+        }
+
+        .favicon::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 50%);
+        }
+
+        .favicon span {
+            font-size: 20px;
+            font-weight: 800;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="icon-container">
+        <!-- Apple Touch Icon -->
+        <div class="apple-touch-icon">
+            <span>R</span>
+        </div>
+
+        <!-- Favicon -->
+        <div class="favicon">
+            <span>R</span>
+        </div>
+    </div>
+</body>
+</html> 
