@@ -5,6 +5,9 @@
 *.so
 *.dylib
 emailvalidator
+emailvalidator.exe
+
+__*
 
 # Test binary, built with `go test -c`
 *.test
