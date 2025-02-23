@@ -462,6 +462,80 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
+
+        .feedback {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            margin-bottom: var(--spacing);
+            border: 1px solid var(--border-color);
+        }
+
+        .feedback h2 {
+            color: var(--text);
+            margin-bottom: 1rem;
+        }
+
+        .feedback-intro {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        .feedback-options {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .feedback-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 2rem;
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .feedback-link.github-link {
+            background: var(--feature-bg);
+            color: var(--feature-text);
+            border: 1px solid rgba(27, 31, 35, 0.1);
+        }
+
+        .feedback-link.twitter-link {
+            background: var(--social-bg);
+            color: var(--social-text);
+        }
+
+        .feedback-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .feedback-link .github-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .feedback {
+                padding: 2rem 1rem;
+            }
+
+            .feedback-options {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .feedback-link {
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -470,7 +544,7 @@
             <h1>Fast Email Validator 2025</h1>
             <p class="hero-subtitle">A completely free and open source email validation API that never stores your data. Built to support solopreneurs and the developer community.</p>
             <div class="hero-features">
-                <span class="hero-feature">100% Free Forever</span>
+                <span class="hero-feature"><a href="#why-free">Why Free?</a></span>
                 <span class="hero-feature">
                     <a href="https://github.com/umuterturk/email-verifier" target="_blank">
                         <svg class="github-icon" viewBox="0 0 16 16">
@@ -480,21 +554,15 @@
                     </a>
                 </span>
                 <span class="hero-feature">Zero Data Storage</span>
-                <span class="hero-feature">Privacy First</span>
             </div>
             <div class="hero-cta">
                 <a href="#api-docs" role="button" class="contrast">View API Documentation</a>
                 <a href="https://buymeacoffee.com/codeonbrew" target="_blank" class="support-link">☕ Buy me a coffee</a>
-                <a href="https://x.com/CodeOnBrew" target="_blank" class="twitter-link">𝕏 @CodeOnBrew</a>
+                <a href="https://x.com/CodeOnBrew" target="_blank" class="twitter-link">𝕏 Follow me</a>
             </div>
         </section>
 
         <section class="features">
-            <div class="feature-card">
-                <h3>⚡ Lightning Fast</h3>
-                <div class="metric">25ms</div>
-                <p>Quick response times to keep your apps snappy</p>
-            </div>
             <div class="feature-card">
                 <h3>🛡️ Privacy First</h3>
                 <div class="metric">0 DB</div>
@@ -504,6 +572,11 @@
                 <h3>💎 All Features</h3>
                 <div class="metric">Free</div>
                 <p>Get the same features big companies pay thousands for, completely free and open source. Use it responsibly</p>
+            </div>
+            <div class="feature-card">
+                <h3>⚡ Lightning Fast</h3>
+                <div class="metric">25ms</div>
+                <p>Quick response times to keep your apps snappy</p>
             </div>
             <div class="feature-card">
                 <h3>🎳 Batch Ready</h3>
@@ -544,7 +617,7 @@
                 <li>Most up to date email hosts database</li>
             </ul>
         </section>
-        <section class="why-free">
+        <section class="why-free" id="why-free">
             <h2>Why Is This Free & Open Source?</h2>
             <p>As a fellow developer, I understand the challenges solopreneurs and small teams face. Not everyone can afford expensive email validation services, yet everyone deserves access to reliable tools. This service is my contribution to the developer community - completely free and open source, with no strings attached. Use it respectfully, and if you find it valuable, consider supporting the project with a coffee! ☕</p>
             <div class="trust-points">
@@ -567,6 +640,22 @@
             <h2>Simple API Documentation</h2>
             <p class="api-intro">Just two endpoints. No authentication required. Start validating emails in minutes.</p>
             <div id="swagger-ui"></div>
+        </section>
+
+        <section class="feedback">
+            <h2>Feedback Welcome! 🙌</h2>
+            <p class="feedback-intro">Your feedback helps make this tool better for everyone in the community.</p>
+            <div class="feedback-options">
+                <a href="https://github.com/umuterturk/email-verifier/issues" target="_blank" class="feedback-link github-link">
+                    <svg class="github-icon" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+                    </svg>
+                    Report Issues or Suggest Features
+                </a>
+                <a href="https://x.com/CodeOnBrew" target="_blank" class="feedback-link twitter-link">
+                    𝕏 Message me on X
+                </a>
+            </div>
         </section>
 
         <footer>
