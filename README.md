@@ -6,7 +6,10 @@
 
 A high-performance, cost-effective email validation service designed for indie hackers and small startups. The service validates email addresses in real-time, checking syntax, domain existence, MX records, and detecting disposable email providers.
 
-🚀 **Try it now**: [https://rapid-email-verifier.fly.dev/](https://rapid-email-verifier.fly.dev/)
+🌐 **Website**: [https://rapid-email-verifier.fly.dev/](https://rapid-email-verifier.fly.dev/)
+
+🚀 **API**
+[https://rapid-email-verifier.fly.dev/api/validate](https://rapid-email-verifier.fly.dev/api/validate?email=user@example.com)
 
 This is a completely free and open source email validation API that never stores your data. Built to support solopreneurs and the developer community. Features include:
 - Zero data storage - your emails are never saved!
