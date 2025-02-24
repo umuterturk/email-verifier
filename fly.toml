@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for fast-email-verifier on 2025-02-15T00:03:01+03:00
+# fly.toml app configuration file generated for rapid-email-verifier on 2025-02-15T00:03:01+03:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'fast-email-verifier'
+app = 'rapid-email-verifier'
 primary_region = 'ams'
 
 [build]

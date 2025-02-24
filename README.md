@@ -458,3 +458,5 @@ PROMETHEUS_ENABLED=true
 ```
 
 The `test_api.sh` script will automatically load these environment variables if they are present in the `.env` file.
+
+> Disposable email provider list is taken from [disposable-email-domains](https://github.com/disposable-email-domains/disposable-email-domains/blob/main/allowlist.conf)
