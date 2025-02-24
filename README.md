@@ -6,6 +6,16 @@
 
 A high-performance, cost-effective email validation service designed for indie hackers and small startups. The service validates email addresses in real-time, checking syntax, domain existence, MX records, and detecting disposable email providers.
 
+🚀 **Try it now**: [https://rapid-email-verifier.fly.dev/](https://rapid-email-verifier.fly.dev/)
+
+This is a completely free and open source email validation API that never stores your data. Built to support solopreneurs and the developer community. Features include:
+- Zero data storage - your emails are never saved!
+- GDPR, CCPA, and PIPEDA compliant
+- No authentication required
+- No usage limits
+- Quick response times
+- Batch validation up to 100 emails
+
 ## Features
 
 - ✅ Syntax validation
@@ -16,6 +26,177 @@ A high-performance, cost-effective email validation service designed for indie h
 - ✍️ Typo suggestions
 - 📊 Real-time monitoring
 - 🔄 Batch processing support
+
+## Validation Examples
+
+> **Note on Validation Approach**: While email RFCs (5321, 5322) define extensive rules for valid email formats, many of these rules are not practically enforced by modern email servers. Our validation takes a practical approach, focusing on rules that are actually enforced by major email providers. For example, we don't support quoted strings in local parts (`"john doe"@example.com`) even though they're technically valid according to RFC, as they're rarely supported in practice and often cause issues.
+
+### Valid Email Formats
+```json
+// Standard email
+{
+  "email": "user@example.com",
+  "validations": {
+    "syntax": true,
+    "domain_exists": true,
+    "mx_records": true
+  },
+  "status": "VALID"
+}
+
+// Email with plus addressing
+{
+  "email": "user+tag@example.com",
+  "validations": {
+    "syntax": true,
+    "domain_exists": true,
+    "mx_records": true
+  },
+  "status": "VALID"
+}
+
+// International email (Unicode)
+{
+  "email": "用户@例子.广告",
+  "validations": {
+    "syntax": true,
+    "domain_exists": true,
+    "mx_records": true
+  },
+  "status": "VALID"
+}
+
+// Hindi characters
+{
+  "email": "अजय@डाटा.भारत",
+  "validations": {
+    "syntax": true,
+    "domain_exists": true,
+    "mx_records": true
+  },
+  "status": "VALID"
+}
+```
+
+### Invalid Email Formats
+```json
+// Missing @ symbol
+{
+  "email": "invalid-email",
+  "validations": {
+    "syntax": false
+  },
+  "status": "INVALID_FORMAT"
+}
+
+// Double dots in local part
+{
+  "email": "john..doe@example.com",
+  "validations": {
+    "syntax": false
+  },
+  "status": "INVALID_FORMAT"
+}
+
+// Spaces in quotes (not supported)
+{
+  "email": "\"john doe\"@example.com",
+  "validations": {
+    "syntax": false
+  },
+  "status": "INVALID_FORMAT"
+}
+
+// Multiple @ symbols
+{
+  "email": "user@domain@example.com",
+  "validations": {
+    "syntax": false
+  },
+  "status": "INVALID_FORMAT"
+}
+```
+
+### Special Cases
+```json
+// Disposable email detection
+{
+  "email": "user@tempmail.com",
+  "validations": {
+    "syntax": true,
+    "domain_exists": true,
+    "mx_records": true,
+    "is_disposable": true
+  },
+  "status": "DISPOSABLE"
+}
+
+// Role-based email detection
+{
+  "email": "admin@company.com",
+  "validations": {
+    "syntax": true,
+    "domain_exists": true,
+    "mx_records": true,
+    "is_role_based": true
+  },
+  "status": "PROBABLY_VALID"
+}
+```
+
+### Batch Validation
+```json
+// Request
+POST /api/validate/batch
+{
+  "emails": [
+    "user@example.com",
+    "invalid-email",
+    "user@nonexistent.com",
+    "admin@company.com"
+  ]
+}
+
+// Response
+{
+  "results": [
+    {
+      "email": "user@example.com",
+      "validations": {
+        "syntax": true,
+        "domain_exists": true,
+        "mx_records": true
+      },
+      "status": "VALID"
+    },
+    {
+      "email": "invalid-email",
+      "validations": {
+        "syntax": false
+      },
+      "status": "INVALID_FORMAT"
+    },
+    {
+      "email": "user@nonexistent.com",
+      "validations": {
+        "syntax": true,
+        "domain_exists": false
+      },
+      "status": "INVALID_DOMAIN"
+    },
+    {
+      "email": "admin@company.com",
+      "validations": {
+        "syntax": true,
+        "domain_exists": true,
+        "mx_records": true,
+        "is_role_based": true
+      },
+      "status": "PROBABLY_VALID"
+    }
+  ]
+}
+```
 
 ## Tech Stack
 
@@ -250,7 +431,7 @@ The service will be available at:
 │   ├── validator/        # Email validation logic
 │   ├── monitoring/       # Metrics and monitoring
 │   └── cache/           # Caching implementation
-├── test/                 # Load and integration tests
+├── test/                 # Unit, integration and acceptnce tests
 └── config/               # Configuration files
 ```
 
@@ -319,146 +500,16 @@ The project includes several types of tests:
 ./test_api.sh
 ```
 
-The `test_api.sh` script provides comprehensive testing of all API endpoints with:
-- Single email validation (GET/POST)
-- Batch email validation (GET/POST)
-- Typo suggestions (GET/POST)
-- Special cases (disposable emails, role-based emails)
-- Error cases (invalid JSON, wrong content type)
-- Status checks
-- Performance metrics for each endpoint type
+## Disclaimers
 
-The script outputs:
-- Detailed test results with colored output
-- Success/failure status for each test
-- Timing statistics for each endpoint type
-- Overall performance metrics
+### Accuracy Disclaimer
+The results provided by this service are based on best-effort validation and should be treated as recommendations rather than absolute truth. Several factors can affect the accuracy of results:
+- Domain DNS records may change
+- Temporary DNS resolution issues
+- Network connectivity problems
+- Email server configuration changes
+- Rate limiting by email servers
+- Syntax validation differences between email providers
 
-### Unit Tests
-```bash
-# Run all unit tests
-go test ./tests/unit/... -v
-
-# Run with coverage
-go test ./tests/unit/... -v -cover
-```
-
-Unit tests cover:
-- Email validation logic
-- Service layer functionality
-- Validator components
-- Cache behavior
-
-### Integration Tests
-```bash
-# Run all integration tests
-go test ./tests/integration/... -v
-```
-
-Integration tests cover:
-- HTTP handlers
-- API endpoints
-- Request/response handling
-- Error scenarios
-
-### Acceptance Tests
-```bash
-# Run all acceptance tests
-go test ./tests/acceptance/... -v
-```
-
-Acceptance tests cover:
-- End-to-end email validation
-- Concurrent request handling
-- Error scenarios
-- API behavior
-
-### Performance Testing
-
-When running performance tests, follow these best practices:
-
-1. **Gradual Testing**
-   Start with minimal load and increase gradually:
-   ```bash
-   # 1. Single concurrent request
-   go test ./tests/acceptance -run TestAcceptanceConcurrentRequests -v -parallel 1
-   
-   # 2. If successful, increase parallel requests
-   go test ./tests/acceptance -run TestAcceptanceConcurrentRequests -v -parallel 5
-   
-   # 3. Further increase if stable
-   go test ./tests/acceptance -run TestAcceptanceConcurrentRequests -v -parallel 10
-   ```
-
-2. **Monitoring During Tests**
-   Open these in separate terminals:
-   ```bash
-   # Watch service status
-   watch -n1 curl -s http://localhost:8080/status
-   
-   # Monitor system resources
-   top -p $(pgrep emailvalidator)
-   
-   # Watch Docker containers
-   watch -n1 docker-compose ps
-   ```
-
-## API Endpoints
-
-### 1. Validate Single Email
-```bash
-# Using POST
-curl -X POST http://localhost:8080/validate \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com"}'
-
-# Using GET
-curl "http://localhost:8080/validate?email=user@example.com"
-```
-
-### 2. Batch Validation
-```bash
-# Using POST
-curl -X POST http://localhost:8080/validate/batch \
-  -H "Content-Type: application/json" \
-  -d '{"emails": ["user1@example.com", "user2@example.com"]}'
-
-# Using GET
-curl "http://localhost:8080/validate/batch?email=user1@example.com&email=user2@example.com"
-```
-
-### 3. Get Typo Suggestions
-```bash
-# Using POST
-curl -X POST http://localhost:8080/typo-suggestions \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@gmial.com"}'
-
-# Using GET
-curl "http://localhost:8080/typo-suggestions?email=user@gmial.com"
-```
-
-### 4. Check API Status
-```bash
-curl http://localhost:8080/status
-```
-
-## Configuration
-
-Create `.env` and configure the following environment variables:
-
-```bash
-# Redis configuration
-REDIS_URL=redis://username:password@host:port
-
-# Server configuration
-PORT=8080
-
-# Optional: Prometheus configuration
-PROMETHEUS_ENABLED=true
-
-```
-
-The `test_api.sh` script will automatically load these environment variables if they are present in the `.env` file.
-
-> Disposable email provider list is taken from [disposable-email-domains](https://github.com/disposable-email-domains/disposable-email-domains/blob/main/allowlist.conf)
+### Legal Disclaimer
+This service is provided "as is" without any warranties or guarantees of any kind, either express or implied. The validation results are for informational purposes only and should not be considered legally binding or definitive. We expressly disclaim any liability for damages of any kind arising from the use of this service or its results. Users are solely responsible for verifying the accuracy of email addresses through additional means before using them for any purpose.
