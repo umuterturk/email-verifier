@@ -9,7 +9,36 @@ import (
 
 	"emailvalidator/internal/model"
 	"emailvalidator/internal/service"
-	"emailvalidator/pkg/monitoring"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+var (
+	// concurrentBatchRequests tracks the number of batch requests being processed concurrently
+	concurrentBatchRequests = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "email_validator_concurrent_batch_requests",
+			Help: "Number of batch requests being processed concurrently",
+		},
+	)
+	// batchSize tracks the distribution of batch sizes
+	batchSize = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "email_validator_batch_size",
+			Help:    "Distribution of batch validation request sizes",
+			Buckets: []float64{1, 5, 10, 25, 50, 100, 250, 500, 1000},
+		},
+	)
+
+	// batchProcessingTime tracks the time taken to process entire batches
+	batchProcessingTime = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "email_validator_batch_processing_seconds",
+			Help:    "Time taken to process entire batch requests",
+			Buckets: []float64{0.1, 0.5, 1, 2.5, 5, 10, 20, 30, 60},
+		},
+	)
 )
 
 // Handler handles all HTTP requests
@@ -76,8 +105,8 @@ func (h *Handler) HandleValidate(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleBatchValidate(w http.ResponseWriter, r *http.Request) {
 	var req model.BatchValidationRequest
 	start := time.Now()
-	monitoring.IncrementConcurrentBatches()
-	defer monitoring.DecrementConcurrentBatches()
+	concurrentBatchRequests.Inc()
+	defer concurrentBatchRequests.Dec()
 
 	switch r.Method {
 	case http.MethodGet:
@@ -99,8 +128,8 @@ func (h *Handler) HandleBatchValidate(w http.ResponseWriter, r *http.Request) {
 
 	result := h.emailService.ValidateEmails(req.Emails)
 
-	// Record batch-specific metrics
-	monitoring.RecordBatchMetrics(len(req.Emails), time.Since(start))
+	batchSize.Observe(float64(len(req.Emails)))
+	batchProcessingTime.Observe(time.Since(start).Seconds())
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(result); err != nil {

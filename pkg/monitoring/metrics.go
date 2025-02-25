@@ -90,32 +90,6 @@ var (
 		},
 		[]string{"cache_type"},
 	)
-
-	// BatchSize tracks the distribution of batch sizes
-	BatchSize = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Name:    "email_validator_batch_size",
-			Help:    "Distribution of batch validation request sizes",
-			Buckets: []float64{1, 5, 10, 25, 50, 100, 250, 500, 1000},
-		},
-	)
-
-	// BatchProcessingTime tracks the time taken to process entire batches
-	BatchProcessingTime = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Name:    "email_validator_batch_processing_seconds",
-			Help:    "Time taken to process entire batch requests",
-			Buckets: []float64{0.1, 0.5, 1, 2.5, 5, 10, 20, 30, 60},
-		},
-	)
-
-	// ConcurrentBatchRequests tracks the number of batch requests being processed concurrently
-	ConcurrentBatchRequests = promauto.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "email_validator_concurrent_batch_requests",
-			Help: "Number of batch requests being processed concurrently",
-		},
-	)
 )
 
 // RecordRequest records metrics for an API request
@@ -158,20 +132,4 @@ func RecordCacheHit(cacheType string) {
 // RecordCacheMiss records a cache miss for the specified cache type
 func RecordCacheMiss(cacheType string) {
 	cacheMisses.WithLabelValues(cacheType).Inc()
-}
-
-// RecordBatchMetrics records metrics for batch operations
-func RecordBatchMetrics(batchSize int, duration time.Duration) {
-	BatchSize.Observe(float64(batchSize))
-	BatchProcessingTime.Observe(duration.Seconds())
-}
-
-// IncrementConcurrentBatches increments the concurrent batch counter
-func IncrementConcurrentBatches() {
-	ConcurrentBatchRequests.Inc()
-}
-
-// DecrementConcurrentBatches decrements the concurrent batch counter
-func DecrementConcurrentBatches() {
-	ConcurrentBatchRequests.Dec()
 }
