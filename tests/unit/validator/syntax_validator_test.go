@@ -32,6 +32,31 @@ func TestSyntaxValidatorValidate(t *testing.T) {
 			want:  true,
 		},
 		{
+			name:  "Valid email with single character local part",
+			email: "J@example.com",
+			want:  true,
+		},
+		{
+			name:  "Valid email with single unicode character local part",
+			email: "İ@example.com",
+			want:  true,
+		},
+		{
+			name:  "Invalid email starts with dot",
+			email: ".user@example.com",
+			want:  false,
+		},
+		{
+			name:  "Invalid email ends with dot",
+			email: "user.@example.com",
+			want:  false,
+		},
+		{
+			name:  "Invalid email - only dot in local part",
+			email: ".@example.com",
+			want:  false,
+		},
+		{
 			name:  "Invalid email - no @",
 			email: "invalid-email",
 			want:  false,

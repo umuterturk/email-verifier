@@ -8,8 +8,6 @@ import (
 
 // SyntaxValidator handles email syntax validation
 type SyntaxValidator struct {
-	// Additional validation for cases not covered by net/mail
-	additionalChecks *regexp.Regexp
 	// Regex to detect quoted strings
 	quotedStringCheck *regexp.Regexp
 }
@@ -17,8 +15,6 @@ type SyntaxValidator struct {
 // NewSyntaxValidator creates a new instance of SyntaxValidator
 func NewSyntaxValidator() *SyntaxValidator {
 	return &SyntaxValidator{
-		// Additional regex for cases not handled by net/mail
-		additionalChecks: regexp.MustCompile(`^[^.][^@]*[^.]@[^.][^@]*[^.]$`),
 		// Regex to detect quoted strings in local part
 		quotedStringCheck: regexp.MustCompile(`"[^"]*"`),
 	}
@@ -43,11 +39,6 @@ func (v *SyntaxValidator) Validate(email string) bool {
 	// Parse with net/mail
 	addr, err := mail.ParseAddress(email)
 	if err != nil {
-		return false
-	}
-
-	// Additional validations not covered by net/mail
-	if !v.additionalChecks.MatchString(addr.Address) {
 		return false
 	}
 
