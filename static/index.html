@@ -536,6 +536,176 @@
                 justify-content: center;
             }
         }
+
+        /* Get Started CTA Section Styles */
+        .get-started-cta {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+            color: white;
+            padding: 4rem 2rem;
+            text-align: center;
+            border-radius: var(--border-radius);
+            margin-bottom: var(--spacing);
+            box-shadow: 0 8px 24px rgba(33, 136, 255, 0.3);
+        }
+
+        .get-started-cta h2 {
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .cta-description {
+            font-size: 1.25rem;
+            max-width: 600px;
+            margin: 0 auto 2rem;
+            opacity: 0.9;
+        }
+
+        .code-example {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            max-width: 800px;
+            margin: 0 auto 2rem;
+            display: flex;
+            align-items: stretch;
+            gap: 15px;
+        }
+
+        .email-input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            font-family: monospace;
+            font-size: 1.1rem;
+            height: 48px;
+            padding: 0 1rem;
+            border-radius: 4px;
+            outline: none;
+            transition: all 0.2s;
+            box-sizing: border-box;
+            display: block;
+        }
+
+        .email-input:focus {
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+        }
+
+        .email-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .validate-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            height: 64px;
+            padding: 0 1.25rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-shrink: 0;
+            box-sizing: border-box;
+            white-space: nowrap;
+        }
+
+        .validate-button:hover {
+            background: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+        }
+
+        .validate-button svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .primary-cta-button, .secondary-cta-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 2rem;
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 1.1rem;
+        }
+
+        .primary-cta-button {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .secondary-cta-button {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .primary-cta-button:hover, .secondary-cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        }
+
+        @media (max-width: 768px) {
+            .get-started-cta {
+                padding: 3rem 1rem;
+            }
+
+            .get-started-cta h2 {
+                font-size: 2rem;
+            }
+
+            .cta-description {
+                font-size: 1.1rem;
+            }
+
+            .code-example {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .code-example input {
+                margin-bottom: 0px;
+            }
+
+            .code-example pre {
+                width: 100%;
+                font-size: 1rem;
+            }
+
+            .validate-button {
+                width: 100%;
+                height: 30%;
+                padding: 0.75rem;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .primary-cta-button, .secondary-cta-button {
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -617,6 +787,31 @@
                 <li>Most up to date email hosts database</li>
             </ul>
         </section>
+
+        <section class="get-started-cta">
+            <h2>Start Validating Emails Now</h2>
+            <p class="cta-description">Enter an email address and click validate to see it in action</p>
+            <div class="code-example">
+                <input type="email" id="email-input" placeholder="user@example.com" value="user@example.com" class="email-input">
+                <button class="validate-button" onclick="validateEmail()" aria-label="Validate">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 11 12 14 22 4"></polyline>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                    </svg>
+                    Validate
+                </button>
+            </div>
+            <div class="cta-buttons">
+                <a href="#api-docs" class="primary-cta-button">Get API Documentation</a>
+                <a href="https://github.com/umuterturk/email-verifier" target="_blank" class="secondary-cta-button">
+                    <svg class="github-icon" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+                    </svg>
+                    View Source Code
+                </a>
+            </div>
+        </section>
+
         <section class="why-free" id="why-free">
             <h2>Why Is This Free & Open Source?</h2>
             <p>As a fellow developer, I understand the challenges solopreneurs and small teams face. Not everyone can afford expensive email validation services, yet everyone deserves access to reliable tools. This service is my contribution to the developer community - completely free and open source, with no strings attached. Use it respectfully, and if you find it valuable, consider supporting the project with a coffee! ☕</p>
@@ -778,7 +973,44 @@
                 filter: true,
                 tryItOutEnabled: true
             });
+
+            // Add event listener for Enter key on email input
+            document.getElementById('email-input').addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    validateEmail(this);
+                }
+            });
         };
+
+        // Function to copy code to clipboard
+        function copyToClipboard(button) {
+            const codeElement = button.previousElementSibling.querySelector('code');
+            const textToCopy = codeElement.textContent;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                // Change button text temporarily
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                
+                // Reset button text after 2 seconds
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
+        function validateEmail() {
+            const emailInput = document.getElementById('email-input');
+            const email = emailInput.value.trim();
+            
+            if (email) {
+                window.open(`https://rapid-email-verifier.fly.dev/api/validate?email=${encodeURIComponent(email)}`, '_blank');
+            } else {
+                emailInput.focus();
+            }
+        }
     </script>
 </body>
 </html> 
