@@ -26,9 +26,10 @@ This is a completely free and open source email validation API that never stores
 - 📨 MX record validation
 - 🚫 Disposable email detection
 - 👥 Role-based email detection
+- 🔍 Email alias detection for major providers (Gmail, Yahoo, Outlook/Hotmail)
 - ✍️ Typo suggestions
 - 📊 Real-time monitoring
-- 🔄 Batch processing support
+- 🔄 Batch processing support with domain-level optimizations
 
 ## Validation Examples
 
@@ -145,6 +146,18 @@ This is a completely free and open source email validation API that never stores
   },
   "status": "PROBABLY_VALID"
 }
+
+// Email alias detection
+{
+  "email": "user.name+test@gmail.com",
+  "validations": {
+    "syntax": true,
+    "domain_exists": true,
+    "mx_records": true
+  },
+  "status": "VALID",
+  "aliasOf": "username@gmail.com"
+}
 ```
 
 ### Batch Validation
@@ -200,6 +213,47 @@ POST /api/validate/batch
   ]
 }
 ```
+
+## Email Alias Detection
+
+The service can detect email aliases for major email providers and identify the canonical form of the email address.
+
+### Supported Providers and Alias Formats
+
+| Provider | Alias Format | Example | Canonical Form |
+|----------|--------------|---------|----------------|
+| Gmail | Dots in local part | `user.name@gmail.com` | `username@gmail.com` |
+| Gmail | Plus addressing | `username+test@gmail.com` | `username@gmail.com` |
+| Yahoo | Hyphen addressing | `username-test@yahoo.com` | `username@yahoo.com` |
+| Outlook/Hotmail | Plus addressing | `username+test@outlook.com` | `username@outlook.com` |
+
+### How It Works
+
+When an email is validated, the service checks if it's an alias for a supported provider. If it is, the `aliasOf` field in the response will contain the canonical form of the email address.
+
+```json
+{
+  "email": "user.name+test@gmail.com",
+  "validations": {
+    "syntax": true,
+    "domain_exists": true,
+    "mx_records": true
+  },
+  "status": "VALID",
+  "aliasOf": "username@gmail.com"
+}
+```
+
+## Batch Processing Optimizations
+
+The service optimizes batch email validation by grouping emails by domain to avoid redundant domain checks. This significantly reduces network calls and resource usage:
+
+- Emails are grouped by domain before validation
+- Domain validations (existence, MX, disposable) are performed once per unique domain
+- The cached domain results are applied to all emails with the same domain
+- Original order and response accuracy are preserved
+
+This optimization is particularly effective for large batches with common domains, reducing domain checks from O(n) to O(unique domains).
 
 ## Tech Stack
 
@@ -427,16 +481,51 @@ The service will be available at:
 ├── internal/              
 │   ├── api/               # HTTP handlers
 │   ├── middleware/        # HTTP middleware components
-│   ├── model/            # Data models
-│   ├── repository/       # Data access layer
-│   └── service/          # Business logic
+│   ├── model/             # Data models
+│   ├── repository/        # Data access layer
+│   └── service/           # Business logic
+│       ├── email_service.go           # Core email validation service
+│       ├── batch_validation_service.go # Batch processing with domain optimizations
+│       ├── domain_validation_service.go # Domain validation with concurrency
+│       └── interfaces.go              # Service interfaces for DI
 ├── pkg/
 │   ├── validator/        # Email validation logic
+│   │   ├── email.go      # Email syntax and validation
+│   │   ├── domain.go     # Domain validation 
+│   │   ├── role.go       # Role-based email detection
+│   │   ├── disposable.go # Disposable email detection
+│   │   └── alias_detector.go # Email alias detection
 │   ├── monitoring/       # Metrics and monitoring
-│   └── cache/           # Caching implementation
-├── test/                 # Unit, integration and acceptnce tests
+│   └── cache/            # Caching implementation
+├── test/                 # Unit, integration and acceptance tests
 └── config/               # Configuration files
 ```
+
+### Service Architecture
+
+The service follows a layered architecture with dependency injection for testability:
+
+1. **API Layer**: HTTP handlers for REST endpoints
+   - Validates request data
+   - Translates to/from service layer models
+   - Implements rate limiting and authentication
+
+2. **Service Layer**: Core business logic
+   - `EmailService`: Main validation service
+   - `BatchValidationService`: Optimized batch processing with domain grouping
+   - `DomainValidationService`: Concurrent domain validation
+   - Uses interfaces for dependency injection
+
+3. **Validation Layer**: Email validation logic
+   - Syntax validation
+   - Domain validation
+   - Role-based detection
+   - Disposable email detection
+   - Email alias detection
+
+4. **Repository Layer**: Data access
+   - Cache implementation
+   - External API clients
 
 ### Running Tests
 
