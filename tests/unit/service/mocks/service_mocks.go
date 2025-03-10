@@ -32,6 +32,11 @@ func (m *MockEmailRuleValidator) GetTypoSuggestions(email string) []string {
 	return args.Get(0).([]string)
 }
 
+func (m *MockEmailRuleValidator) DetectAlias(email string) string {
+	args := m.Called(email)
+	return args.String(0)
+}
+
 // MockDomainValidator mocks the DomainValidator interface
 type MockDomainValidator struct {
 	mock.Mock

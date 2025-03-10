@@ -11,6 +11,7 @@ type EmailValidator struct {
 	domainValidator     *DomainValidator
 	roleValidator       *RoleValidator
 	disposableValidator *DisposableValidator
+	aliasDetector       *AliasDetector
 }
 
 // NewEmailValidator creates a new instance of EmailValidator
@@ -28,6 +29,7 @@ func NewEmailValidator() (*EmailValidator, error) {
 		domainValidator:     NewDomainValidator(resolver, cacheManager),
 		roleValidator:       NewRoleValidator(),
 		disposableValidator: disposableValidator,
+		aliasDetector:       NewAliasDetector(),
 	}, nil
 }
 
@@ -45,6 +47,7 @@ func NewEmailValidatorWithResolver(resolver DNSResolver) (*EmailValidator, error
 		domainValidator:     NewDomainValidator(resolver, cacheManager),
 		roleValidator:       NewRoleValidator(),
 		disposableValidator: disposableValidator,
+		aliasDetector:       NewAliasDetector(),
 	}, nil
 }
 
@@ -162,4 +165,9 @@ func (v *EmailValidator) GetTypoSuggestions(email string) []string {
 	}
 
 	return suggestions
+}
+
+// DetectAlias checks if the email is an alias and returns the canonical email if it is
+func (v *EmailValidator) DetectAlias(email string) string {
+	return v.aliasDetector.DetectAlias(email)
 }

@@ -39,6 +39,11 @@ func (m *MockEmailValidator) GetTypoSuggestions(email string) []string {
 	return m.MockEmailRuleValidator.GetTypoSuggestions(email)
 }
 
+// DetectAlias implements the validator.EmailValidator interface
+func (m *MockEmailValidator) DetectAlias(email string) string {
+	return m.MockEmailRuleValidator.DetectAlias(email)
+}
+
 // ValidateDomain implements the validator.EmailValidator interface
 func (m *MockEmailValidator) ValidateDomain(domain string) bool {
 	return m.MockDomainValidator.ValidateDomain(domain)
@@ -89,6 +94,7 @@ func TestEmailService_ValidateEmail(t *testing.T) {
 			setup: func(rv *mocks.MockEmailRuleValidator, dv *mocks.MockDomainValidationService, mc *mocks.MockMetricsCollector) {
 				rv.On("ValidateSyntax", "test@example.com").Return(true)
 				rv.On("IsRoleBased", "test@example.com").Return(false)
+				rv.On("DetectAlias", "test@example.com").Return("")
 				dv.On("ValidateDomainConcurrently", mock.Anything, "example.com").Return(true, true, false)
 				rv.On("CalculateScore", mock.Anything).Return(95)
 				mc.On("RecordValidationScore", "overall", float64(95))

@@ -38,6 +38,7 @@ type EmailValidationResponse struct {
 	Validations ValidationResults `json:"validations"`
 	Score       int               `json:"score"`
 	Status      ValidationStatus  `json:"status"`
+	AliasOf     string            `json:"aliasOf,omitempty"` // Optional field to indicate if email is an alias
 }
 
 // BatchValidationRequest represents a request to validate multiple emails

@@ -228,6 +228,11 @@ func (s *BatchValidationService) validateSingleEmail(
 	response.Validations.IsRoleBased = s.emailRuleValidator.IsRoleBased(email)
 	response.Validations.MailboxExists = response.Validations.MXRecords
 
+	// Detect if email is an alias
+	if canonicalEmail := s.emailRuleValidator.DetectAlias(email); canonicalEmail != "" && canonicalEmail != email {
+		response.AliasOf = canonicalEmail
+	}
+
 	// Calculate score
 	validationMap := map[string]bool{
 		"syntax":         response.Validations.Syntax,

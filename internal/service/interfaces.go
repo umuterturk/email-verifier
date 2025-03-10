@@ -25,6 +25,7 @@ type EmailRuleValidator interface {
 	IsRoleBased(email string) bool
 	CalculateScore(validations map[string]bool) int
 	GetTypoSuggestions(email string) []string
+	DetectAlias(email string) string
 }
 
 // MetricsCollector defines the contract for collecting service metrics
@@ -36,4 +37,11 @@ type MetricsCollector interface {
 // DomainValidationService defines the contract for concurrent domain validation operations
 type DomainValidationService interface {
 	ValidateDomainConcurrently(ctx context.Context, domain string) (exists, hasMX, isDisposable bool)
+}
+
+// AliasDetector defines the contract for detecting email aliases
+type AliasDetector interface {
+	// DetectAlias checks if the email is an alias and returns the canonical email if it is
+	// Returns empty string if the email is not an alias
+	DetectAlias(email string) string
 }

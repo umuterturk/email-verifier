@@ -113,6 +113,11 @@ func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse
 	response.Validations.IsRoleBased = s.emailRuleValidator.IsRoleBased(email)
 	response.Validations.MailboxExists = hasMX
 
+	// Detect if email is an alias
+	if canonicalEmail := s.emailRuleValidator.DetectAlias(email); canonicalEmail != "" && canonicalEmail != email {
+		response.AliasOf = canonicalEmail
+	}
+
 	// Calculate score
 	validationMap := map[string]bool{
 		"syntax":         response.Validations.Syntax,

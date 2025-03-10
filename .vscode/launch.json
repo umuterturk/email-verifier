@@ -9,7 +9,6 @@
             "program": "${workspaceFolder}/main.go",
             "args": ["--config", "${workspaceFolder}/config.yaml"]
         },
-        // debug, run main.go and working directory is the root of the project
         {
             "name": "Debug Main",
             "type": "go",

@@ -16,26 +16,42 @@ do
     fi
 done
 
+# Array to track failing tests
+declare -a failed_tests=()
+
 # Set the Base URL based on environment
 if [ "$USE_PROD" = true ]; then
     API_URL="https://rapid-email-verifier.fly.dev/api"
     echo -e "${BLUE}Using production API: ${API_URL}${NC}"
-    
-    # Set expected statuses for production environment
-    EXAMPLE_COM_STATUS="VALID"
-    DISPOSABLE_STATUS="NO_MX_RECORDS"  # Production returns NO_MX_RECORDS instead of DISPOSABLE
-    ROLE_BASED_STATUS="VALID"
-    GMAIL_DK_STATUS="VALID"  # Production doesn't detect null MX records correctly
 else
     API_URL="http://localhost:8080/api"
     echo -e "${BLUE}Using localhost API: ${API_URL}${NC}"
-    
-    # Set expected statuses for local environment with our MX record fix
-    EXAMPLE_COM_STATUS="NO_MX_RECORDS"  # Local server may not have proper MX record resolution
-    DISPOSABLE_STATUS="NO_MX_RECORDS"  # Local returns NO_MX_RECORDS for disposable domains with no MX
-    ROLE_BASED_STATUS="NO_MX_RECORDS"  # Local returns NO_MX_RECORDS for role-based emails when no MX
-    GMAIL_DK_STATUS="NO_MX_RECORDS"  # Our fix correctly detects null MX records
 fi
+
+# Connectivity check - Verify the API is accessible and can validate emails
+echo -e "${BLUE}Checking API connectivity...${NC}"
+CONNECTIVITY_TEST=$(curl -s -X POST "${API_URL}/validate" -H "Content-Type: application/json" -d '{"email":"test@gmail.com"}')
+
+# Check if the request failed or returned an error
+if [ $? -ne 0 ] || [ -z "$CONNECTIVITY_TEST" ] || [[ "$CONNECTIVITY_TEST" == *"error"* ]]; then
+    echo -e "${RED}Error: Could not connect to the API or received an error response.${NC}"
+    echo -e "${RED}Response: $CONNECTIVITY_TEST${NC}"
+    echo -e "${RED}Please ensure the server is running and accessible.${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}API connectivity check passed.${NC}"
+
+# Set expected validation statuses based on real-world provider behavior
+# These are constants and don't need to change based on environment
+EXAMPLE_COM_STATUS="NO_MX_RECORDS"  # example.com typically doesn't have proper MX records
+DISPOSABLE_STATUS="NO_MX_RECORDS"   # Disposable domains often have no MX or are blocked
+ROLE_BASED_STATUS="NO_MX_RECORDS"   # Role-based emails at example.com will have no MX
+GMAIL_DK_STATUS="NO_MX_RECORDS"     # gmail.dk has null MX records that should be detected
+GMAIL_COM_STATUS="VALID"            # Gmail.com has valid MX records
+YAHOO_COM_STATUS="VALID"            # Yahoo.com has valid MX records
+OUTLOOK_COM_STATUS="VALID"          # Outlook.com has valid MX records
+HOTMAIL_COM_STATUS="VALID"          # Hotmail.com has valid MX records
 
 # Load environment variables
 if [ -f .env ]; then
@@ -44,7 +60,7 @@ fi
 
 
 # Initialize timing data arrays
-declare -a endpoint_types=("single_validation" "batch_validation" "typo_suggestions" "special_cases" "error_cases" "status" "skip_secret")
+declare -a endpoint_types=("single_validation" "batch_validation" "typo_suggestions" "special_cases" "error_cases" "status" "skip_secret" "alias_detection")
 declare -a times=()
 declare -a counts=()
 
@@ -74,6 +90,40 @@ check_response() {
             echo -e "${GREEN}✓ $description - Status: $actual_status${NC}"
         else
             echo -e "${RED}✗ $description - Expected: $expected_status, Got: $actual_status${NC}"
+            # Store the failure details
+            failed_tests+=("${description} - Expected: ${expected_status}, Got: ${actual_status}")
+        fi
+    fi
+}
+
+# Function to check if response contains aliasOf field
+check_alias() {
+    local response=$1
+    local expected_alias=$2
+    local description=$3
+    
+    # Check if the response contains the aliasOf field
+    if [ -n "$expected_alias" ]; then
+        # Extract the aliasOf field from the JSON response if it exists
+        local alias_field
+        alias_field=$(echo "$response" | grep -o '"aliasOf":"[^"]*"' | cut -d'"' -f4)
+        
+        if [ -n "$alias_field" ]; then
+            if [ "$alias_field" = "$expected_alias" ]; then
+                echo -e "${GREEN}✓ $description - Found aliasOf: $alias_field${NC}"
+            else
+                echo -e "${RED}✗ $description - Expected aliasOf: $expected_alias, Got: $alias_field${NC}"
+                # Store the failure details
+                failed_tests+=("${description} - Expected aliasOf: ${expected_alias}, Got: ${alias_field}")
+            fi
+        else
+            if [ "$expected_alias" = "NONE" ]; then
+                echo -e "${GREEN}✓ $description - No aliasOf field as expected${NC}"
+            else
+                echo -e "${RED}✗ $description - Expected aliasOf: $expected_alias, but no aliasOf field found${NC}"
+                # Store the failure details
+                failed_tests+=("${description} - Expected aliasOf: ${expected_alias}, but no aliasOf field found")
+            fi
         fi
     fi
 }
@@ -95,6 +145,7 @@ test_endpoint() {
     local command=$2
     local endpoint_type=$3
     local expected_status=$4
+    local expected_alias=$5
     
     echo -e "${BLUE}Testing: ${description}${NC}"
     echo -e "${BLUE}Command: ${command}${NC}"
@@ -113,6 +164,11 @@ test_endpoint() {
     # Check response against expected status
     if [ -n "$expected_status" ]; then
         check_response "$output" "$expected_status" "$description"
+    fi
+    
+    # Check response for aliasOf field
+    if [ -n "$expected_alias" ]; then
+        check_alias "$output" "$expected_alias" "$description"
     fi
     
     # Store timing data
@@ -245,7 +301,78 @@ test_endpoint "Batch with mixed valid and null MX domains (POST)" \
 "curl -X POST \"${API_URL}/validate/batch\" -H \"Content-Type: application/json\" -d '{\"emails\":[\"user@gmail.com\",\"user@gmail.dk\"]}' ${SKIP_SECRET_HEADER}" \
 "special_cases"
 
-# 5. Error Cases
+# 5. Email Alias Detection Tests
+print_header "Email Alias Detection Tests"
+
+# Gmail dot alias - POST
+test_endpoint "Gmail dot alias (POST)" \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"user.name@gmail.com\"}' ${SKIP_SECRET_HEADER}" \
+"alias_detection" \
+"${GMAIL_COM_STATUS}" \
+"username@gmail.com"
+
+# Gmail plus alias - POST
+test_endpoint "Gmail plus alias (POST)" \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"username+test@gmail.com\"}' ${SKIP_SECRET_HEADER}" \
+"alias_detection" \
+"${GMAIL_COM_STATUS}" \
+"username@gmail.com"
+
+# Gmail combined dots and plus - POST
+test_endpoint "Gmail combined dots and plus (POST)" \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"user.name+test@gmail.com\"}' ${SKIP_SECRET_HEADER}" \
+"alias_detection" \
+"${GMAIL_COM_STATUS}" \
+"username@gmail.com"
+
+# Gmail combined dots and plus - GET (with proper URL encoding of +)
+test_endpoint "Gmail combined dots and plus (GET)" \
+"curl -X GET \"${API_URL}/validate?email=user.name%2Btest@gmail.com\" ${SKIP_SECRET_HEADER}" \
+"alias_detection" \
+"${GMAIL_COM_STATUS}" \
+"username@gmail.com"
+
+# Yahoo alias - POST
+test_endpoint "Yahoo alias (POST)" \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"username-test@yahoo.com\"}' ${SKIP_SECRET_HEADER}" \
+"alias_detection" \
+"${YAHOO_COM_STATUS}" \
+"username@yahoo.com"
+
+# Yahoo alias - GET
+test_endpoint "Yahoo alias (GET)" \
+"curl -X GET \"${API_URL}/validate?email=username-test@yahoo.com\" ${SKIP_SECRET_HEADER}" \
+"alias_detection" \
+"${YAHOO_COM_STATUS}" \
+"username@yahoo.com"
+
+# Outlook alias - POST
+test_endpoint "Outlook alias (POST)" \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"username+test@outlook.com\"}' ${SKIP_SECRET_HEADER}" \
+"alias_detection" \
+"${OUTLOOK_COM_STATUS}" \
+"username@outlook.com"
+
+# Hotmail alias - POST
+test_endpoint "Hotmail alias (POST)" \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"username+test@hotmail.com\"}' ${SKIP_SECRET_HEADER}" \
+"alias_detection" \
+"${HOTMAIL_COM_STATUS}" \
+"username@hotmail.com"
+
+# Non-alias email - POST
+test_endpoint "Non-alias email (POST)" \
+"curl -X POST \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"username@gmail.com\"}' ${SKIP_SECRET_HEADER}" \
+"alias_detection" \
+"${GMAIL_COM_STATUS}" \
+"NONE"
+
+# Batch with mixed aliases - POST
+test_endpoint "Batch with mixed aliases (POST)" \
+"curl -X POST \"${API_URL}/validate/batch\" -H \"Content-Type: application/json\" -d '{\"emails\":[\"user.name+test@gmail.com\",\"username-test@yahoo.com\",\"username+test@outlook.com\",\"normal@example.com\"]}' ${SKIP_SECRET_HEADER}" \
+"alias_detection"
+
+# 6. Error Cases
 print_header "Error Cases"
 
 # Invalid JSON - POST
@@ -263,7 +390,7 @@ test_endpoint "Method not allowed (PUT)" \
 "curl -X PUT \"${API_URL}/validate\" -H \"Content-Type: application/json\" -d '{\"email\":\"user@example.com\"}' ${SKIP_SECRET_HEADER}" \
 "error_cases"
 
-# 6. Status Check
+# 7. Status Check
 print_header "Status Check"
 
 # Get service status
@@ -299,4 +426,18 @@ printf "%-60s\n" "==============================================================
 if [ $total_requests -gt 0 ]; then
     avg_time=$(echo "scale=3; $total_time / $total_requests" | bc)
     printf "${GREEN}%-25s %10d %15.3f %15.3f${NC}\n" "Overall" "$total_requests" "$total_time" "$avg_time"
+fi
+
+# Print failing tests summary
+print_header "Failing Tests Summary"
+
+if [ ${#failed_tests[@]} -eq 0 ]; then
+    echo -e "${GREEN}All tests passed successfully!${NC}"
+else
+    echo -e "${RED}Found ${#failed_tests[@]} failing tests:${NC}"
+    for ((i=0; i<${#failed_tests[@]}; i++)); do
+        echo -e "${RED}$(($i+1)). ${failed_tests[$i]}${NC}"
+    done
+    # Exit with non-zero status if there are failures
+    exit 1
 fi 
