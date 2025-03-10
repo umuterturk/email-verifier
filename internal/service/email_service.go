@@ -119,7 +119,7 @@ func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse
 	return response
 }
 
-// performDomainValidations runs domain validations concurrently with proper timeout handling
+// performDomainValidations runs domain validation checks concurrently
 func (s *EmailService) performDomainValidations(ctx context.Context, domain string) (exists, hasMX, isDisposable bool) {
 	// Create a context with shorter timeout for domain validations
 	domainCtx, domainCancel := context.WithTimeout(ctx, 5*time.Second)
@@ -186,13 +186,12 @@ func (s *EmailService) performDomainValidations(ctx context.Context, domain stri
 		}
 	}()
 
-	// Wait for all domain validations to complete
 	go func() {
 		wgDomain.Wait()
 		close(domainResults)
 	}()
 
-	// Collect domain validation results
+	// Collect validation results
 	for result := range domainResults {
 		switch result.validationType {
 		case "domain_exists":
@@ -207,119 +206,201 @@ func (s *EmailService) performDomainValidations(ctx context.Context, domain stri
 	return exists, hasMX, isDisposable
 }
 
-// worker processes emails from the jobs channel and sends results to the results channel
-func (s *EmailService) worker(jobs <-chan string, results chan<- model.EmailValidationResponse, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	// Create a context with timeout for each validation
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	for email := range jobs {
-		// Perform validation
-		response := model.EmailValidationResponse{
-			Email:       email,
-			Validations: model.ValidationResults{},
-		}
-
-		if email == "" {
-			response.Status = model.ValidationStatusMissingEmail
-			results <- response
-			continue
-		}
-
-		// Split email into local part and domain
-		parts := strings.Split(email, "@")
-		if len(parts) != 2 {
-			response.Status = model.ValidationStatusInvalidFormat
-			results <- response
-			continue
-		}
-		domain := parts[1]
-
-		// Perform all validations
-		response.Validations.Syntax = s.validator.ValidateSyntax(email)
-		if !response.Validations.Syntax {
-			response.Status = model.ValidationStatusInvalidFormat
-			results <- response
-			continue
-		}
-
-		// Perform domain validations concurrently
-		response.Validations.DomainExists, response.Validations.MXRecords, response.Validations.IsDisposable = s.performDomainValidations(ctx, domain)
-
-		response.Validations.IsRoleBased = s.validator.IsRoleBased(email)
-		response.Validations.MailboxExists = response.Validations.MXRecords
-
-		// Calculate score
-		validationMap := map[string]bool{
-			"syntax":         response.Validations.Syntax,
-			"domain_exists":  response.Validations.DomainExists,
-			"mx_records":     response.Validations.MXRecords,
-			"mailbox_exists": response.Validations.MailboxExists,
-			"is_disposable":  response.Validations.IsDisposable,
-			"is_role_based":  response.Validations.IsRoleBased,
-		}
-		response.Score = s.validator.CalculateScore(validationMap)
-
-		// Record validation score
-		monitoring.RecordValidationScore("overall", float64(response.Score))
-
-		// Set appropriate status based on validations
-		switch {
-		case !response.Validations.DomainExists:
-			response.Status = model.ValidationStatusInvalidDomain
-		case !response.Validations.MXRecords:
-			response.Status = model.ValidationStatusNoMXRecords
-			// Override score to 40 for no MX records case
-			response.Score = 40
-		case response.Validations.IsDisposable:
-			response.Status = model.ValidationStatusDisposable
-		case response.Score >= 90:
-			response.Status = model.ValidationStatusValid
-		case response.Score >= 70:
-			response.Status = model.ValidationStatusProbablyValid
-		default:
-			response.Status = model.ValidationStatusInvalid
-		}
-
-		results <- response
-	}
-}
-
 // ValidateEmails performs validation on multiple email addresses concurrently
 func (s *EmailService) ValidateEmails(emails []string) model.BatchValidationResponse {
 	if len(emails) == 0 {
 		return model.BatchValidationResponse{Results: []model.EmailValidationResponse{}}
 	}
 
-	// Create channels for jobs and results with appropriate buffer sizes
-	jobs := make(chan string, len(emails))
+	// Group emails by domain to avoid redundant domain checks
+	emailsByDomain := make(map[string][]string)
+	emailsWithInvalidFormat := make(map[string]bool)
+
+	for _, email := range emails {
+		if email == "" {
+			// Handle empty emails separately
+			emailsWithInvalidFormat[email] = true
+			continue
+		}
+
+		// Split email into local part and domain
+		parts := strings.Split(email, "@")
+		if len(parts) != 2 {
+			// Handle invalid format emails separately
+			emailsWithInvalidFormat[email] = true
+			continue
+		}
+
+		domain := parts[1]
+		emailsByDomain[domain] = append(emailsByDomain[domain], email)
+	}
+
+	// Process domain validations once per domain
+	domainResults := make(map[string]struct {
+		DomainExists bool
+		MXRecords    bool
+		IsDisposable bool
+	})
+
+	// Create a context with timeout for domain validations
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Process each domain concurrently
+	var wgDomains sync.WaitGroup
+	domainChan := make(chan string, len(emailsByDomain))
+	resultChan := make(chan struct {
+		domain       string
+		domainExists bool
+		hasMX        bool
+		isDisposable bool
+	}, len(emailsByDomain))
+
+	// Determine optimal number of workers for domain validation
+	domainWorkerCount := minInt(len(emailsByDomain), runtime.NumCPU()*2)
+	wgDomains.Add(domainWorkerCount)
+
+	// Start domain validation workers
+	for i := 0; i < domainWorkerCount; i++ {
+		go func() {
+			defer wgDomains.Done()
+			for domain := range domainChan {
+				exists, hasMX, isDisposable := s.performDomainValidations(ctx, domain)
+				resultChan <- struct {
+					domain       string
+					domainExists bool
+					hasMX        bool
+					isDisposable bool
+				}{domain, exists, hasMX, isDisposable}
+			}
+		}()
+	}
+
+	// Send domains to be processed
+	for domain := range emailsByDomain {
+		domainChan <- domain
+	}
+	close(domainChan)
+
+	// Wait for domain validations to complete in a separate goroutine
+	go func() {
+		wgDomains.Wait()
+		close(resultChan)
+	}()
+
+	// Collect domain validation results
+	for result := range resultChan {
+		domainResults[result.domain] = struct {
+			DomainExists bool
+			MXRecords    bool
+			IsDisposable bool
+		}{result.domainExists, result.hasMX, result.isDisposable}
+	}
+
+	// Process individual emails using the domain validation results
+	var wg sync.WaitGroup
 	results := make(chan model.EmailValidationResponse, len(emails))
 
-	// Create a wait group to track workers
-	var wg sync.WaitGroup
+	// Create a channel for emails to be processed
+	jobs := make(chan string, len(emails))
 
-	// Determine optimal number of workers based on workload type
-	// For IO-bound operations (DNS, Redis), we can use more workers than CPU cores
+	// Determine number of workers for email processing
 	workerCount := minInt(len(emails), runtime.NumCPU()*4)
 	wg.Add(workerCount)
 
-	// Record goroutine metrics
-	monitoring.UpdateGoroutineCount(float64(runtime.NumGoroutine()))
-
-	// Start workers and send jobs concurrently
-	go func() {
-		for _, email := range emails {
-			jobs <- email
-		}
-		close(jobs)
-	}()
-
-	// Start workers
+	// Start workers for email processing
 	for i := 0; i < workerCount; i++ {
-		go s.worker(jobs, results, &wg)
+		go func() {
+			defer wg.Done()
+			for email := range jobs {
+				// Handle empty emails
+				if email == "" {
+					results <- model.EmailValidationResponse{
+						Email:  email,
+						Status: model.ValidationStatusMissingEmail,
+					}
+					continue
+				}
+
+				// Handle invalid format emails
+				if emailsWithInvalidFormat[email] {
+					results <- model.EmailValidationResponse{
+						Email:  email,
+						Status: model.ValidationStatusInvalidFormat,
+					}
+					continue
+				}
+
+				// Process valid format emails
+				parts := strings.Split(email, "@")
+				domain := parts[1]
+
+				// Create response with domain validation results
+				response := model.EmailValidationResponse{
+					Email:       email,
+					Validations: model.ValidationResults{},
+				}
+
+				// Check syntax
+				response.Validations.Syntax = s.validator.ValidateSyntax(email)
+				if !response.Validations.Syntax {
+					response.Status = model.ValidationStatusInvalidFormat
+					results <- response
+					continue
+				}
+
+				// Get domain validation results
+				domainValidation := domainResults[domain]
+				response.Validations.DomainExists = domainValidation.DomainExists
+				response.Validations.MXRecords = domainValidation.MXRecords
+				response.Validations.IsDisposable = domainValidation.IsDisposable
+
+				// Check if role-based (this is per-email, not per-domain)
+				response.Validations.IsRoleBased = s.validator.IsRoleBased(email)
+				response.Validations.MailboxExists = response.Validations.MXRecords
+
+				// Calculate score
+				validationMap := map[string]bool{
+					"syntax":         response.Validations.Syntax,
+					"domain_exists":  response.Validations.DomainExists,
+					"mx_records":     response.Validations.MXRecords,
+					"mailbox_exists": response.Validations.MailboxExists,
+					"is_disposable":  response.Validations.IsDisposable,
+					"is_role_based":  response.Validations.IsRoleBased,
+				}
+				response.Score = s.validator.CalculateScore(validationMap)
+
+				// Record validation score
+				monitoring.RecordValidationScore("overall", float64(response.Score))
+
+				// Set appropriate status based on validations
+				switch {
+				case !response.Validations.DomainExists:
+					response.Status = model.ValidationStatusInvalidDomain
+				case !response.Validations.MXRecords:
+					response.Status = model.ValidationStatusNoMXRecords
+					// Override score to 40 for no MX records case
+					response.Score = 40
+				case response.Validations.IsDisposable:
+					response.Status = model.ValidationStatusDisposable
+				case response.Score >= 90:
+					response.Status = model.ValidationStatusValid
+				case response.Score >= 70:
+					response.Status = model.ValidationStatusProbablyValid
+				default:
+					response.Status = model.ValidationStatusInvalid
+				}
+
+				results <- response
+			}
+		}()
 	}
+
+	// Send emails to be processed
+	for _, email := range emails {
+		jobs <- email
+	}
+	close(jobs)
 
 	// Wait for all workers to complete in a separate goroutine
 	go func() {
