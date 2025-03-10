@@ -47,7 +47,25 @@ func (v *DomainValidator) Validate(domain string) bool {
 // ValidateMX checks if the domain has valid MX records
 func (v *DomainValidator) ValidateMX(domain string) bool {
 	start := time.Now()
-	_, err := v.resolver.LookupMX(domain)
+	mxRecords, err := v.resolver.LookupMX(domain)
 	monitoring.RecordDNSLookup("mx", time.Since(start))
-	return err == nil
+
+	// If there's an error in lookup, the domain doesn't have valid MX records
+	if err != nil {
+		return false
+	}
+
+	// No MX records means the domain doesn't accept email
+	if len(mxRecords) == 0 {
+		return false
+	}
+
+	// Check for null MX record (RFC 7505)
+	// A single MX record with "." as the host indicates the domain doesn't accept email
+	if len(mxRecords) == 1 && mxRecords[0].Host == "." {
+		return false
+	}
+
+	// Otherwise, the domain has valid MX records
+	return true
 }

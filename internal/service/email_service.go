@@ -104,6 +104,8 @@ func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse
 		response.Status = model.ValidationStatusInvalidDomain
 	case !response.Validations.MXRecords:
 		response.Status = model.ValidationStatusNoMXRecords
+		// Override score to 40 for no MX records case
+		response.Score = 40
 	case response.Validations.IsDisposable:
 		response.Status = model.ValidationStatusDisposable
 	case response.Score >= 90:
@@ -269,6 +271,8 @@ func (s *EmailService) worker(jobs <-chan string, results chan<- model.EmailVali
 			response.Status = model.ValidationStatusInvalidDomain
 		case !response.Validations.MXRecords:
 			response.Status = model.ValidationStatusNoMXRecords
+			// Override score to 40 for no MX records case
+			response.Score = 40
 		case response.Validations.IsDisposable:
 			response.Status = model.ValidationStatusDisposable
 		case response.Score >= 90:

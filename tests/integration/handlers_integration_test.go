@@ -75,7 +75,7 @@ func TestHandleValidate(t *testing.T) {
 			email:      "user@example.com",
 			method:     http.MethodPost,
 			wantStatus: http.StatusOK,
-			wantScore:  100,
+			wantScore:  40,
 		},
 		{
 			name:       "Invalid email POST",
@@ -89,7 +89,7 @@ func TestHandleValidate(t *testing.T) {
 			email:      "user@example.com",
 			method:     http.MethodGet,
 			wantStatus: http.StatusOK,
-			wantScore:  100,
+			wantScore:  40,
 		},
 		{
 			name:       "Missing email parameter GET",
