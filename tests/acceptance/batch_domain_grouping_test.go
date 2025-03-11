@@ -447,10 +447,13 @@ func (s *MockEmailService) ValidateEmails(emails []string) model.BatchValidation
 // GetTypoSuggestions implements the typo suggestion method
 func (s *MockEmailService) GetTypoSuggestions(email string) model.TypoSuggestionResponse {
 	suggestions := s.validator.GetTypoSuggestions(email)
-	return model.TypoSuggestionResponse{
-		Email:       email,
-		Suggestions: suggestions,
+	response := model.TypoSuggestionResponse{
+		Email: email,
 	}
+	if len(suggestions) > 0 {
+		response.TypoSuggestion = suggestions[0]
+	}
+	return response
 }
 
 // GetAPIStatus implements the status method

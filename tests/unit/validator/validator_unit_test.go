@@ -165,9 +165,27 @@ func TestGetTypoSuggestions(t *testing.T) {
 			wantLen: 1,
 		},
 		{
+			name:    "Gmail typo - missing l",
+			email:   "user@gmai.com",
+			want:    []string{"user@gmail.com"},
+			wantLen: 1,
+		},
+		{
+			name:    "Gmail typo - co instead of com",
+			email:   "user@gmail.co",
+			want:    []string{"user@gmail.com"},
+			wantLen: 1,
+		},
+		{
 			name:    "Yahoo typo",
 			email:   "user@yaho.com",
 			want:    []string{"user@yahoo.com"},
+			wantLen: 1,
+		},
+		{
+			name:    "Outlook typo",
+			email:   "user@outlok.com",
+			want:    []string{"user@outlook.com"},
 			wantLen: 1,
 		},
 		{

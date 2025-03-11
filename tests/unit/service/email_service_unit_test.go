@@ -67,6 +67,13 @@ func TestServiceValidateEmail(t *testing.T) {
 			wantSyntax: false,
 			wantStatus: model.ValidationStatusMissingEmail,
 		},
+		{
+			name:       "Email with typo",
+			email:      "user@outlok.com",
+			wantScore:  80, // 100 - 20 (typo penalty)
+			wantSyntax: true,
+			wantStatus: model.ValidationStatusProbablyValid,
+		},
 	}
 
 	mockResolver := &mockDNSResolver{
@@ -140,22 +147,25 @@ func TestServiceValidateEmails(t *testing.T) {
 
 func TestServiceGetTypoSuggestions(t *testing.T) {
 	tests := []struct {
-		name               string
-		email              string
-		wantEmail          string
-		wantHasSuggestions bool
+		name              string
+		email             string
+		wantEmail         string
+		wantHasSuggestion bool
+		wantSuggestion    string
 	}{
 		{
-			name:               "Email with typo",
-			email:              "user@gmial.com",
-			wantEmail:          "user@gmial.com",
-			wantHasSuggestions: true,
+			name:              "Email with typo",
+			email:             "user@outlok.com",
+			wantEmail:         "user@outlok.com",
+			wantHasSuggestion: true,
+			wantSuggestion:    "user@outlook.com",
 		},
 		{
-			name:               "Valid email",
-			email:              "user@gmail.com",
-			wantEmail:          "user@gmail.com",
-			wantHasSuggestions: false,
+			name:              "Valid email",
+			email:             "user@gmail.com",
+			wantEmail:         "user@gmail.com",
+			wantHasSuggestion: false,
+			wantSuggestion:    "",
 		},
 	}
 
@@ -176,9 +186,13 @@ func TestServiceGetTypoSuggestions(t *testing.T) {
 				t.Errorf("Email = %v, want %v", result.Email, tt.wantEmail)
 			}
 
-			hasSuggestions := len(result.Suggestions) > 0
-			if hasSuggestions != tt.wantHasSuggestions {
-				t.Errorf("HasSuggestions = %v, want %v", hasSuggestions, tt.wantHasSuggestions)
+			hasSuggestion := result.TypoSuggestion != ""
+			if hasSuggestion != tt.wantHasSuggestion {
+				t.Errorf("HasSuggestion = %v, want %v", hasSuggestion, tt.wantHasSuggestion)
+			}
+
+			if tt.wantHasSuggestion && result.TypoSuggestion != tt.wantSuggestion {
+				t.Errorf("TypoSuggestion = %v, want %v", result.TypoSuggestion, tt.wantSuggestion)
 			}
 		})
 	}

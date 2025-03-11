@@ -228,6 +228,12 @@ func (s *BatchValidationService) validateSingleEmail(
 	response.Validations.IsRoleBased = s.emailRuleValidator.IsRoleBased(email)
 	response.Validations.MailboxExists = response.Validations.MXRecords
 
+	// Always check for typo suggestions
+	suggestions := s.emailRuleValidator.GetTypoSuggestions(email)
+	if len(suggestions) > 0 {
+		response.TypoSuggestion = suggestions[0]
+	}
+
 	// Detect if email is an alias
 	if canonicalEmail := s.emailRuleValidator.DetectAlias(email); canonicalEmail != "" && canonicalEmail != email {
 		response.AliasOf = canonicalEmail
@@ -244,16 +250,21 @@ func (s *BatchValidationService) validateSingleEmail(
 	}
 	response.Score = s.emailRuleValidator.CalculateScore(validationMap)
 
+	// Reduce score if there's a typo suggestion
+	if response.TypoSuggestion != "" {
+		response.Score = max(0, response.Score-20) // Ensure score doesn't go below 0
+	}
+
 	// Record validation score
 	s.metricsCollector.RecordValidationScore("overall", float64(response.Score))
 
 	// Set status
-	response.Status = s.determineValidationStatus(response)
+	response.Status = s.determineValidationStatus(&response)
 
 	return response
 }
 
-func (s *BatchValidationService) determineValidationStatus(response model.EmailValidationResponse) model.ValidationStatus {
+func (s *BatchValidationService) determineValidationStatus(response *model.EmailValidationResponse) model.ValidationStatus {
 	switch {
 	case !response.Validations.DomainExists:
 		return model.ValidationStatusInvalidDomain

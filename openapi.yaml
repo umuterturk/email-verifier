@@ -251,6 +251,13 @@ components:
             - NO_MX_RECORDS
             - DISPOSABLE
           description: Validation status
+        aliasOf:
+          type: string
+          format: email
+          description: If the email is an alias, this field contains the canonical form
+        typoSuggestion:
+          type: string
+          description: Suggested correction for the email if a typo is detected
 
     EmailValidationRequest:
       type: object
@@ -300,11 +307,9 @@ components:
           type: string
           format: email
           description: The original email address
-        suggestions:
-          type: array
-          items:
-            type: string
-          description: List of suggested corrections
+        typoSuggestion:
+          type: string
+          description: Suggested correction for the email address
 
     APIStatus:
       type: object

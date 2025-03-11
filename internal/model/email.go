@@ -34,11 +34,12 @@ type EmailValidationRequest struct {
 
 // EmailValidationResponse represents the response for email validation
 type EmailValidationResponse struct {
-	Email       string            `json:"email"`
-	Validations ValidationResults `json:"validations"`
-	Score       int               `json:"score"`
-	Status      ValidationStatus  `json:"status"`
-	AliasOf     string            `json:"aliasOf,omitempty"` // Optional field to indicate if email is an alias
+	Email          string            `json:"email"`
+	Validations    ValidationResults `json:"validations"`
+	Score          int               `json:"score"`
+	Status         ValidationStatus  `json:"status"`
+	AliasOf        string            `json:"aliasOf,omitempty"`        // Optional field to indicate if email is an alias
+	TypoSuggestion string            `json:"typoSuggestion,omitempty"` // Optional field for typo suggestion
 }
 
 // BatchValidationRequest represents a request to validate multiple emails
@@ -58,8 +59,8 @@ type TypoSuggestionRequest struct {
 
 // TypoSuggestionResponse represents the response for email typo suggestions
 type TypoSuggestionResponse struct {
-	Email       string   `json:"email"`
-	Suggestions []string `json:"suggestions"`
+	Email          string `json:"email"`
+	TypoSuggestion string `json:"typoSuggestion,omitempty"`
 }
 
 // APIStatus represents the current status of the API

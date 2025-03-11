@@ -95,6 +95,7 @@ func TestEmailService_ValidateEmail(t *testing.T) {
 				rv.On("ValidateSyntax", "test@example.com").Return(true)
 				rv.On("IsRoleBased", "test@example.com").Return(false)
 				rv.On("DetectAlias", "test@example.com").Return("")
+				rv.On("GetTypoSuggestions", "test@example.com").Return([]string{})
 				dv.On("ValidateDomainConcurrently", mock.Anything, "example.com").Return(true, true, false)
 				rv.On("CalculateScore", mock.Anything).Return(95)
 				mc.On("RecordValidationScore", "overall", float64(95))

@@ -329,9 +329,9 @@ func TestHandleTypoSuggestions(t *testing.T) {
 				t.Fatalf("Failed to decode response: %v", err)
 			}
 
-			hasSuggestion := len(result.Suggestions) > 0
+			hasSuggestion := result.TypoSuggestion != ""
 			if hasSuggestion != tt.wantHasSuggestion {
-				t.Errorf("got suggestions = %v, want %v", hasSuggestion, tt.wantHasSuggestion)
+				t.Errorf("got typoSuggestion = %v, want %v", hasSuggestion, tt.wantHasSuggestion)
 			}
 		})
 	}

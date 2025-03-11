@@ -145,10 +145,23 @@ func (v *EmailValidator) GetTypoSuggestions(email string) []string {
 		"gmial.com":  "gmail.com",
 		"gmal.com":   "gmail.com",
 		"gamil.com":  "gmail.com",
+		"gmai.com":   "gmail.com",
+		"gmail.co":   "gmail.com",
+		"gmail.cm":   "gmail.com",
+		"gmail.om":   "gmail.com",
+		"gmail.con":  "gmail.com",
 		"yaho.com":   "yahoo.com",
 		"yahooo.com": "yahoo.com",
+		"yahoo.co":   "yahoo.com",
+		"yahoo.cm":   "yahoo.com",
 		"hotmai.com": "hotmail.com",
 		"hotmal.com": "hotmail.com",
+		"hotmail.co": "hotmail.com",
+		"hotmail.cm": "hotmail.com",
+		"otmail.com": "hotmail.com",
+		"outlook.co": "outlook.com",
+		"outlook.cm": "outlook.com",
+		"outlok.com": "outlook.com",
 	}
 
 	parts := strings.Split(email, "@")

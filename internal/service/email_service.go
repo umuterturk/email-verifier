@@ -113,6 +113,12 @@ func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse
 	response.Validations.IsRoleBased = s.emailRuleValidator.IsRoleBased(email)
 	response.Validations.MailboxExists = hasMX
 
+	// Always check for typo suggestions
+	suggestions := s.emailRuleValidator.GetTypoSuggestions(email)
+	if len(suggestions) > 0 {
+		response.TypoSuggestion = suggestions[0]
+	}
+
 	// Detect if email is an alias
 	if canonicalEmail := s.emailRuleValidator.DetectAlias(email); canonicalEmail != "" && canonicalEmail != email {
 		response.AliasOf = canonicalEmail
@@ -128,6 +134,11 @@ func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse
 		"is_role_based":  response.Validations.IsRoleBased,
 	}
 	response.Score = s.emailRuleValidator.CalculateScore(validationMap)
+
+	// Reduce score if there's a typo suggestion
+	if response.TypoSuggestion != "" {
+		response.Score = max(0, response.Score-20) // Ensure score doesn't go below 0
+	}
 
 	// Record validation score
 	s.metricsCollector.RecordValidationScore("overall", float64(response.Score))
@@ -162,10 +173,13 @@ func (s *EmailService) ValidateEmails(emails []string) model.BatchValidationResp
 func (s *EmailService) GetTypoSuggestions(email string) model.TypoSuggestionResponse {
 	atomic.AddInt64(&s.requests, 1)
 	suggestions := s.emailRuleValidator.GetTypoSuggestions(email)
-	return model.TypoSuggestionResponse{
-		Email:       email,
-		Suggestions: suggestions,
+	response := model.TypoSuggestionResponse{
+		Email: email,
 	}
+	if len(suggestions) > 0 {
+		response.TypoSuggestion = suggestions[0]
+	}
+	return response
 }
 
 // GetAPIStatus returns the current status of the API
