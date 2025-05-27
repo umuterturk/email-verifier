@@ -1,6 +1,7 @@
 # Email Validator Service
 
 [![Tests](https://github.com/umuterturk/email-verifier/actions/workflows/tests.yml/badge.svg)](https://github.com/umuterturk/email-verifier/actions/workflows/tests.yml)
+[![Build and Publish Docker Image](https://github.com/umuterturk/email-verifier/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/umuterturk/email-verifier/actions/workflows/docker-publish.yml)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-yellow.svg)](https://www.buymeacoffee.com/codeonbrew)
 [![Patreon](https://img.shields.io/badge/Patreon-Support-f96854.svg)](https://www.patreon.com/codeonbrew)
 
@@ -621,3 +622,43 @@ Modern email providers have implemented extensive security measures specifically
 While our service can validate syntax, verify domain existence, and check MX records, these checks only confirm that the domain *could* receive email, not that a specific address exists or is actively monitored.
 
 For the most reliable verification, consider using a double opt-in process where users must confirm their email by clicking a link sent to that address.
+
+## Using Docker
+
+### Docker Hub Image
+
+You can use the pre-built Docker image directly from Docker Hub:
+
+```bash
+# Pull the latest image
+docker pull umutert/emailvalidator:latest
+
+# Run the container
+docker run -p 8080:8080 umutert/emailvalidator:latest
+```
+
+For detailed instructions on setting up automated Docker image deployment, see [Docker Deployment Guide](docs/docker-deployment.md).
+
+### Docker Compose
+
+To run the full stack with Redis, Prometheus, and Grafana:
+
+```bash
+# Pull and start all services
+docker-compose up -d
+```
+
+This will start the email validation service along with:
+- Redis for caching
+- Prometheus for metrics collection
+- Grafana for visualization (accessible at http://localhost:3000)
+
+### Environment Variables
+
+The Docker image supports the following environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| PORT | 8080 | The port on which the service will listen |
+| PROMETHEUS_ENABLED | false | Enable Prometheus metrics |
+| REDIS_URL | | Redis connection URL (format: redis://host:port) |
