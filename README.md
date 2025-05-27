@@ -605,3 +605,19 @@ The results provided by this service are based on best-effort validation and sho
 
 ### Legal Disclaimer
 This service is provided "as is" without any warranties or guarantees of any kind, either express or implied. The validation results are for informational purposes only and should not be considered legally binding or definitive. We expressly disclaim any liability for damages of any kind arising from the use of this service or its results. Users are solely responsible for verifying the accuracy of email addresses through additional means before using them for any purpose.
+
+## Email Existence Verification Limitations
+
+It's important to understand that this service (like any email validation service) **cannot definitively verify if an email address actually exists** or if it will accept mail. For example, an address like `blablablabla@gmail.com` may or may not exist, and there is no reliable way to determine this with certainty.
+
+Modern email providers have implemented extensive security measures specifically to prevent email existence checking:
+
+- **Catch-all policies**: Many domains use catch-all configurations that accept mail for any address at their domain
+- **Anti-harvesting measures**: Major providers like Gmail, Yahoo, and Outlook deliberately return positive responses for all syntactically valid addresses to prevent email harvesting
+- **Anti-spam protections**: Email servers often employ throttling, temporary blocks, and other anti-spam techniques against automated verification attempts
+- **SMTP blocking**: Most major email providers block SMTP-based verification techniques to protect user privacy
+- **False positives/negatives**: Even when servers respond, they may provide misleading responses to protect privacy
+
+While our service can validate syntax, verify domain existence, and check MX records, these checks only confirm that the domain *could* receive email, not that a specific address exists or is actively monitored.
+
+For the most reliable verification, consider using a double opt-in process where users must confirm their email by clicking a link sent to that address.
