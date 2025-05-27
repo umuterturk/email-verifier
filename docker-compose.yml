@@ -1,4 +1,4 @@
-version: '3'
+
 services:
   email-validator:
     build:
@@ -8,8 +8,18 @@ services:
       - "8080:8080"
     environment:
       - PROMETHEUS_ENABLED=true
+      - REDIS_URL=redis://redis:6379
     depends_on:
       - prometheus
+      - redis
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
 
   prometheus:
     image: prom/prometheus:latest
@@ -36,4 +46,5 @@ services:
       - prometheus
 
 volumes:
-  grafana-storage: {} 
+  grafana-storage: {}
+  redis-data: {} 
