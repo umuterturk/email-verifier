@@ -15,16 +15,19 @@ const (
 	ValidationStatusInvalidDomain ValidationStatus = "INVALID_DOMAIN"
 	ValidationStatusNoMXRecords   ValidationStatus = "NO_MX_RECORDS"
 	ValidationStatusDisposable    ValidationStatus = "DISPOSABLE"
+	ValidationStatusCatchAll      ValidationStatus = "CATCH_ALL" // Domain accepts all addresses
 )
 
 // ValidationResults represents the results of various validation checks
 type ValidationResults struct {
-	Syntax        bool `json:"syntax"`
-	DomainExists  bool `json:"domain_exists"`
-	MXRecords     bool `json:"mx_records"`
-	MailboxExists bool `json:"mailbox_exists"`
-	IsDisposable  bool `json:"is_disposable"`
-	IsRoleBased   bool `json:"is_role_based"`
+	Syntax        bool  `json:"syntax"`
+	DomainExists  bool  `json:"domain_exists"`
+	MXRecords     bool  `json:"mx_records"`
+	MailboxExists bool  `json:"mailbox_exists"`
+	IsDisposable  bool  `json:"is_disposable"`
+	IsRoleBased   bool  `json:"is_role_based"`
+	SMTPVerified  *bool `json:"smtp_verified,omitempty"` // nil if not checked, true if mailbox confirmed via SMTP
+	IsCatchAll    *bool `json:"is_catch_all,omitempty"`  // nil if not checked, true if domain accepts all addresses
 }
 
 // EmailValidationRequest represents a request to validate a single email

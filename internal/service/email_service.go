@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"emailvalidator/internal/config"
 	"emailvalidator/internal/model"
 	"emailvalidator/pkg/validator"
 )
@@ -18,6 +19,7 @@ type EmailService struct {
 	emailRuleValidator  EmailRuleValidator
 	domainValidator     DomainValidator
 	domainValidationSvc DomainValidationService
+	smtpVerificationSvc SMTPVerificationService
 	batchValidationSvc  *BatchValidationService
 	metricsCollector    MetricsCollector
 	startTime           time.Time
@@ -33,12 +35,18 @@ func NewEmailService() (*EmailService, error) {
 
 	metricsAdapter := NewMetricsAdapter()
 	domainValidationSvc := NewConcurrentDomainValidationService(emailValidator)
+
+	// Load SMTP config and create verification service
+	smtpConfig := config.LoadSMTPVerifierConfig()
+	smtpVerificationSvc := NewSMTPVerificationService(smtpConfig)
+
 	batchValidationSvc := NewBatchValidationService(emailValidator, domainValidationSvc, metricsAdapter)
 
 	return &EmailService{
 		emailRuleValidator:  emailValidator,
 		domainValidator:     emailValidator,
 		domainValidationSvc: domainValidationSvc,
+		smtpVerificationSvc: smtpVerificationSvc,
 		batchValidationSvc:  batchValidationSvc,
 		metricsCollector:    metricsAdapter,
 		startTime:           time.Now(),
@@ -111,7 +119,37 @@ func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse
 	response.Validations.MXRecords = hasMX
 	response.Validations.IsDisposable = isDisposable
 	response.Validations.IsRoleBased = s.emailRuleValidator.IsRoleBased(email)
-	response.Validations.MailboxExists = hasMX
+	response.Validations.MailboxExists = hasMX // Default to MX result, will be updated by SMTP
+
+	// Perform SMTP verification if MX records exist and service is enabled
+	if hasMX && s.smtpVerificationSvc != nil && s.smtpVerificationSvc.IsEnabled() {
+		mxRecords, err := s.domainValidator.GetMXRecords(domain)
+		if err == nil && len(mxRecords) > 0 {
+			smtpResult := s.smtpVerificationSvc.VerifyMailbox(context.Background(), email, domain, mxRecords)
+
+			if !smtpResult.Skipped {
+				// Set SMTP verification results
+				smtpVerified := smtpResult.Verified
+				response.Validations.SMTPVerified = &smtpVerified
+
+				isCatchAll := smtpResult.IsCatchAll
+				response.Validations.IsCatchAll = &isCatchAll
+
+				// Update MailboxExists based on SMTP result
+				if smtpResult.IsCatchAll {
+					// Catch-all domains always accept, so we can't truly verify
+					response.Validations.MailboxExists = true
+				} else if smtpResult.Verified {
+					// SMTP confirmed mailbox exists
+					response.Validations.MailboxExists = true
+				} else if smtpResult.ResponseCode == 550 || smtpResult.ResponseCode == 553 || smtpResult.ResponseCode == 551 {
+					// SMTP confirmed mailbox does NOT exist
+					response.Validations.MailboxExists = false
+				}
+				// If error or timeout, keep MailboxExists = hasMX (graceful fallback)
+			}
+		}
+	}
 
 	// Always check for typo suggestions
 	suggestions := s.emailRuleValidator.GetTypoSuggestions(email)
@@ -133,7 +171,18 @@ func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse
 		"is_disposable":  response.Validations.IsDisposable,
 		"is_role_based":  response.Validations.IsRoleBased,
 	}
+
+	// Add SMTP verification to score if available
+	if response.Validations.SMTPVerified != nil {
+		validationMap["smtp_verified"] = *response.Validations.SMTPVerified
+	}
+
 	response.Score = s.emailRuleValidator.CalculateScore(validationMap)
+
+	// Apply catch-all penalty (verification is uncertain for catch-all domains)
+	if response.Validations.IsCatchAll != nil && *response.Validations.IsCatchAll {
+		response.Score = max(0, response.Score-10)
+	}
 
 	// Reduce score if there's a typo suggestion
 	if response.TypoSuggestion != "" {
@@ -152,6 +201,12 @@ func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse
 		response.Score = 40 // Override score for no MX records case
 	case response.Validations.IsDisposable:
 		response.Status = model.ValidationStatusDisposable
+	case response.Validations.IsCatchAll != nil && *response.Validations.IsCatchAll:
+		response.Status = model.ValidationStatusCatchAll
+	case !response.Validations.MailboxExists:
+		// Mailbox doesn't exist (confirmed by SMTP)
+		response.Status = model.ValidationStatusInvalid
+		response.Score = max(0, response.Score-30) // Heavy penalty for non-existent mailbox
 	case response.Score >= 90:
 		response.Status = model.ValidationStatusValid
 	case response.Score >= 70:
@@ -222,4 +277,9 @@ func (s *EmailService) SetEmailRuleValidator(validator EmailRuleValidator) {
 // SetDomainValidator sets the domain validator (for testing)
 func (s *EmailService) SetDomainValidator(validator DomainValidator) {
 	s.domainValidator = validator
+}
+
+// SetSMTPVerificationService sets the SMTP verification service (for testing)
+func (s *EmailService) SetSMTPVerificationService(svc SMTPVerificationService) {
+	s.smtpVerificationSvc = svc
 }

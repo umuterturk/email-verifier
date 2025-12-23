@@ -30,6 +30,8 @@ func (m *mockDNSResolver) LookupHost(domain string) ([]string, error) {
 }
 
 func TestServiceValidateEmail(t *testing.T) {
+	// Note: Without SMTP verification (mock resolver can't do SMTP), max score is 80
+	// SMTP verification adds 20 points to reach 100
 	tests := []struct {
 		name          string
 		email         string
@@ -39,11 +41,11 @@ func TestServiceValidateEmail(t *testing.T) {
 		wantStatus    model.ValidationStatus
 	}{
 		{
-			name:       "Valid email",
+			name:       "Valid email (without SMTP)",
 			email:      "user@example.com",
-			wantScore:  100,
+			wantScore:  80, // Without SMTP: 15+15+15+15+10+10 = 80
 			wantSyntax: true,
-			wantStatus: model.ValidationStatusValid,
+			wantStatus: model.ValidationStatusProbablyValid, // 80 >= 70, < 90
 		},
 		{
 			name:       "Invalid email format",
@@ -53,12 +55,12 @@ func TestServiceValidateEmail(t *testing.T) {
 			wantStatus: model.ValidationStatusInvalidFormat,
 		},
 		{
-			name:          "Role-based email",
+			name:          "Role-based email (without SMTP)",
 			email:         "admin@example.com",
-			wantScore:     90,
+			wantScore:     70, // 15+15+15+15+10 = 70 (no is_role_based bonus)
 			wantSyntax:    true,
 			wantRoleBased: true,
-			wantStatus:    model.ValidationStatusValid,
+			wantStatus:    model.ValidationStatusProbablyValid, // 70 >= 70
 		},
 		{
 			name:       "Empty email",
@@ -68,11 +70,11 @@ func TestServiceValidateEmail(t *testing.T) {
 			wantStatus: model.ValidationStatusMissingEmail,
 		},
 		{
-			name:       "Email with typo",
+			name:       "Email with typo (without SMTP)",
 			email:      "user@outlok.com",
-			wantScore:  80, // 100 - 20 (typo penalty)
+			wantScore:  60, // 80 - 20 (typo penalty)
 			wantSyntax: true,
-			wantStatus: model.ValidationStatusProbablyValid,
+			wantStatus: model.ValidationStatusInvalid, // 60 < 70
 		},
 	}
 

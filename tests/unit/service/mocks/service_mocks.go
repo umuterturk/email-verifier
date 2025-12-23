@@ -3,6 +3,9 @@ package mocks
 
 import (
 	"context"
+	"net"
+
+	"emailvalidator/pkg/validator"
 
 	"github.com/stretchr/testify/mock"
 )
@@ -57,6 +60,14 @@ func (m *MockDomainValidator) IsDisposable(domain string) bool {
 	return args.Bool(0)
 }
 
+func (m *MockDomainValidator) GetMXRecords(domain string) ([]*net.MX, error) {
+	args := m.Called(domain)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*net.MX), args.Error(1)
+}
+
 // MockDomainValidationService mocks the DomainValidationService interface
 type MockDomainValidationService struct {
 	mock.Mock
@@ -78,4 +89,39 @@ func (m *MockMetricsCollector) RecordValidationScore(name string, score float64)
 
 func (m *MockMetricsCollector) UpdateMemoryUsage(heapInUse, stackInUse float64) {
 	m.Called(heapInUse, stackInUse)
+}
+
+// MockSMTPVerificationService mocks the SMTPVerificationService interface
+type MockSMTPVerificationService struct {
+	mock.Mock
+}
+
+func (m *MockSMTPVerificationService) VerifyMailbox(ctx context.Context, email, domain string, mxRecords []*net.MX) validator.SMTPVerificationResult {
+	args := m.Called(ctx, email, domain, mxRecords)
+	return args.Get(0).(validator.SMTPVerificationResult)
+}
+
+func (m *MockSMTPVerificationService) IsCatchAll(ctx context.Context, domain string, mxRecords []*net.MX) (bool, error) {
+	args := m.Called(ctx, domain, mxRecords)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockSMTPVerificationService) IsEnabled() bool {
+	args := m.Called()
+	return args.Bool(0)
+}
+
+// MockSMTPVerifier mocks the SMTPVerifier interface
+type MockSMTPVerifier struct {
+	mock.Mock
+}
+
+func (m *MockSMTPVerifier) VerifyMailbox(ctx context.Context, email, domain string, mxRecords []*net.MX) validator.SMTPVerificationResult {
+	args := m.Called(ctx, email, domain, mxRecords)
+	return args.Get(0).(validator.SMTPVerificationResult)
+}
+
+func (m *MockSMTPVerifier) DetectCatchAll(ctx context.Context, domain string, mxRecords []*net.MX) (bool, error) {
+	args := m.Called(ctx, domain, mxRecords)
+	return args.Bool(0), args.Error(1)
 }

@@ -227,13 +227,21 @@ components:
               description: Whether the domain has valid MX records
             mailbox_exists:
               type: boolean
-              description: Whether the mailbox exists
+              description: Whether the mailbox exists (confirmed by SMTP if available)
             is_disposable:
               type: boolean
               description: Whether the email is from a disposable provider
             is_role_based:
               type: boolean
               description: Whether the email is a role-based address
+            smtp_verified:
+              type: boolean
+              nullable: true
+              description: Whether the mailbox was verified via SMTP RCPT TO handshake. Null if SMTP verification was not performed.
+            is_catch_all:
+              type: boolean
+              nullable: true
+              description: Whether the domain is a catch-all (accepts all addresses). Null if not checked.
         score:
           type: integer
           minimum: 0
@@ -250,6 +258,7 @@ components:
             - INVALID_DOMAIN
             - NO_MX_RECORDS
             - DISPOSABLE
+            - CATCH_ALL
           description: Validation status
         aliasOf:
           type: string

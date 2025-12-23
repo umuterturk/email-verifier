@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"net"
 	"time"
 
 	"emailvalidator/pkg/monitoring"
@@ -68,4 +69,10 @@ func (v *DomainValidator) ValidateMX(domain string) bool {
 
 	// Otherwise, the domain has valid MX records
 	return true
+}
+
+// GetMXRecords returns the MX records for a domain
+// Used by SMTP verification to connect to mail servers
+func (v *DomainValidator) GetMXRecords(domain string) ([]*net.MX, error) {
+	return v.resolver.LookupMX(domain)
 }

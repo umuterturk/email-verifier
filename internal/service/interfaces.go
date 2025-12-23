@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"net"
+
 	"emailvalidator/internal/model"
+	"emailvalidator/pkg/validator"
 )
 
 // EmailValidator defines the contract for email validation operations
@@ -17,6 +20,7 @@ type DomainValidator interface {
 	ValidateDomain(domain string) bool
 	ValidateMXRecords(domain string) bool
 	IsDisposable(domain string) bool
+	GetMXRecords(domain string) ([]*net.MX, error)
 }
 
 // EmailRuleValidator defines the contract for email-specific rule validations
@@ -44,4 +48,14 @@ type AliasDetector interface {
 	// DetectAlias checks if the email is an alias and returns the canonical email if it is
 	// Returns empty string if the email is not an alias
 	DetectAlias(email string) string
+}
+
+// SMTPVerificationService defines the contract for SMTP mailbox verification
+type SMTPVerificationService interface {
+	// VerifyMailbox performs SMTP RCPT TO verification to check if mailbox exists
+	VerifyMailbox(ctx context.Context, email, domain string, mxRecords []*net.MX) validator.SMTPVerificationResult
+	// IsCatchAll checks if domain is a catch-all (accepts all addresses)
+	IsCatchAll(ctx context.Context, domain string, mxRecords []*net.MX) (bool, error)
+	// IsEnabled returns whether SMTP verification is enabled
+	IsEnabled() bool
 }

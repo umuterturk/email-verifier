@@ -228,7 +228,7 @@ func TestCalculateScore(t *testing.T) {
 		want        int
 	}{
 		{
-			name: "All validations pass",
+			name: "All validations pass (without SMTP)",
 			validations: map[string]bool{
 				"syntax":         true,
 				"domain_exists":  true,
@@ -237,7 +237,20 @@ func TestCalculateScore(t *testing.T) {
 				"is_disposable":  false,
 				"is_role_based":  false,
 			},
-			want: 100,
+			want: 80, // 15+15+15+15+10+10 = 80 (SMTP adds 20 more)
+		},
+		{
+			name: "All validations pass (with SMTP)",
+			validations: map[string]bool{
+				"syntax":         true,
+				"domain_exists":  true,
+				"mx_records":     true,
+				"mailbox_exists": true,
+				"smtp_verified":  true,
+				"is_disposable":  false,
+				"is_role_based":  false,
+			},
+			want: 100, // 15+15+15+15+20+10+10 = 100
 		},
 		{
 			name: "Only syntax valid",
@@ -249,10 +262,10 @@ func TestCalculateScore(t *testing.T) {
 				"is_disposable":  true,
 				"is_role_based":  true,
 			},
-			want: 20,
+			want: 15, // Only syntax (15)
 		},
 		{
-			name: "Role-based email",
+			name: "Role-based email (without SMTP)",
 			validations: map[string]bool{
 				"syntax":         true,
 				"domain_exists":  true,
@@ -261,7 +274,7 @@ func TestCalculateScore(t *testing.T) {
 				"is_disposable":  false,
 				"is_role_based":  true,
 			},
-			want: 90,
+			want: 70, // 15+15+15+15+10 = 70 (no role_based bonus)
 		},
 	}
 

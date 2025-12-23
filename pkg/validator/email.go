@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"net"
 	"strings"
 	"time"
 )
@@ -93,6 +94,11 @@ func (v *EmailValidator) ValidateMXRecords(domain string) bool {
 	return v.domainValidator.ValidateMX(domain)
 }
 
+// GetMXRecords returns the MX records for a domain
+func (v *EmailValidator) GetMXRecords(domain string) ([]*net.MX, error) {
+	return v.domainValidator.GetMXRecords(domain)
+}
+
 // IsDisposable checks if the email domain is from a disposable email provider
 func (v *EmailValidator) IsDisposable(domain string) bool {
 	return v.disposableValidator.Validate(domain)
@@ -107,10 +113,11 @@ func (v *EmailValidator) IsRoleBased(email string) bool {
 func (v *EmailValidator) CalculateScore(validations map[string]bool) int {
 	score := 0
 	weights := map[string]int{
-		"syntax":         20,
-		"domain_exists":  20,
-		"mx_records":     20,
-		"mailbox_exists": 20,
+		"syntax":         15,
+		"domain_exists":  15,
+		"mx_records":     15,
+		"mailbox_exists": 15,
+		"smtp_verified":  20, // SMTP verification bonus (higher weight for confirmed mailbox)
 		"is_disposable":  10,
 		"is_role_based":  10,
 	}
