@@ -4185,7 +4185,7 @@ digital-filestore.de
 dingfone.com
 directbox.com
 discartmail.com
-dm.w3internet.co.ukexample.com
+dm.w3internet.co.uk
 doc.biz.tm
 dontmail.net
 dontsentmespam.de
@@ -4203,7 +4203,6 @@ envenve1e.com
 epicgamer.org
 esa.thc.lv
 evilninjapirates.com
-example.com
 fahr-zur-hoelle.org
 faic.tk
 farifluset.mailexpire.com
