@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"log"
 	"runtime"
 	"strings"
 	"sync/atomic"
@@ -14,6 +15,9 @@ import (
 	"emailvalidator/pkg/validator"
 )
 
+// Default TTL for email validation result caching
+const emailCacheTTL = 24 * time.Hour
+
 // EmailService handles email validation operations
 type EmailService struct {
 	emailRuleValidator  EmailRuleValidator
@@ -21,6 +25,7 @@ type EmailService struct {
 	domainValidationSvc DomainValidationService
 	batchValidationSvc  *BatchValidationService
 	metricsCollector    MetricsCollector
+	redisCache          cache.Cache
 	startTime           time.Time
 	requests            int64
 }
@@ -47,6 +52,7 @@ func NewEmailServiceWithCache(redisCache cache.Cache) (*EmailService, error) {
 		domainValidationSvc: domainValidationSvc,
 		batchValidationSvc:  batchValidationSvc,
 		metricsCollector:    metricsAdapter,
+		redisCache:          redisCache,
 		startTime:           time.Now(),
 	}, nil
 }
@@ -80,9 +86,44 @@ func NewEmailServiceWithDeps(validator interface{}) *EmailService {
 	}
 }
 
+// getCachedEmailResult checks Redis for a cached email validation result
+func (s *EmailService) getCachedEmailResult(email string) (*model.EmailValidationResponse, bool) {
+	if s.redisCache == nil {
+		return nil, false
+	}
+
+	var result model.EmailValidationResponse
+	err := s.redisCache.Get(context.Background(), "email:"+strings.ToLower(email), &result)
+	if err != nil {
+		return nil, false
+	}
+
+	log.Printf("[Cache] Redis HIT for email:%s (status=%s, score=%d)", email, result.Status, result.Score)
+	return &result, true
+}
+
+// cacheEmailResult stores an email validation result in Redis
+func (s *EmailService) cacheEmailResult(email string, result model.EmailValidationResponse) {
+	if s.redisCache == nil {
+		return
+	}
+
+	key := "email:" + strings.ToLower(email)
+	if err := s.redisCache.Set(context.Background(), key, result, emailCacheTTL); err != nil {
+		log.Printf("[Cache] ERROR: Failed to write %s to Redis: %v", key, err)
+	} else {
+		log.Printf("[Cache] Wrote %s to Redis (status=%s, score=%d, ttl=%v)", key, result.Status, result.Score, emailCacheTTL)
+	}
+}
+
 // ValidateEmail performs all validation checks on a single email
 func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse {
 	atomic.AddInt64(&s.requests, 1)
+
+	// Check Redis cache first for full email result
+	if cached, found := s.getCachedEmailResult(email); found {
+		return *cached
+	}
 
 	response := model.EmailValidationResponse{
 		Email:       email,
@@ -165,6 +206,9 @@ func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse
 	default:
 		response.Status = model.ValidationStatusInvalid
 	}
+
+	// Cache the full result in Redis
+	s.cacheEmailResult(email, response)
 
 	return response
 }

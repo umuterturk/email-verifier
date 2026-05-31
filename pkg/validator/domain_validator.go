@@ -46,26 +46,39 @@ func (v *DomainValidator) Validate(domain string) bool {
 
 // ValidateMX checks if the domain has valid MX records
 func (v *DomainValidator) ValidateMX(domain string) bool {
+	// Check cache first
+	if hasMX, found := v.cacheManager.GetMX(domain); found {
+		monitoring.RecordCacheOperation("mx_lookup", "hit")
+		return hasMX
+	}
+	monitoring.RecordCacheOperation("mx_lookup", "miss")
+
 	start := time.Now()
 	mxRecords, err := v.resolver.LookupMX(domain)
 	monitoring.RecordDNSLookup("mx", time.Since(start))
 
+	var hasMX bool
+
 	// If there's an error in lookup, the domain doesn't have valid MX records
 	if err != nil {
-		return false
+		hasMX = false
+	} else if len(mxRecords) == 0 {
+		// No MX records means the domain doesn't accept email
+		hasMX = false
+	} else if len(mxRecords) == 1 && mxRecords[0].Host == "." {
+		// Check for null MX record (RFC 7505)
+		// A single MX record with "." as the host indicates the domain doesn't accept email
+		hasMX = false
+	} else {
+		// Otherwise, the domain has valid MX records
+		hasMX = true
 	}
 
-	// No MX records means the domain doesn't accept email
-	if len(mxRecords) == 0 {
-		return false
-	}
+	// Update cache
+	v.cacheManager.SetMX(domain, hasMX)
 
-	// Check for null MX record (RFC 7505)
-	// A single MX record with "." as the host indicates the domain doesn't accept email
-	if len(mxRecords) == 1 && mxRecords[0].Host == "." {
-		return false
-	}
+	// Periodically clean up expired cache entries
+	go v.cacheManager.ClearExpired()
 
-	// Otherwise, the domain has valid MX records
-	return true
+	return hasMX
 }
