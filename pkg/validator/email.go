@@ -25,9 +25,9 @@ func NewEmailValidator() (*EmailValidator, error) {
 func NewEmailValidatorWithCache(redisCache cache.Cache) (*EmailValidator, error) {
 	var cacheManager *DomainCacheManager
 	if redisCache != nil {
-		cacheManager = NewDomainCacheManagerWithRedis(time.Hour, redisCache)
+		cacheManager = NewDomainCacheManagerWithRedis(24*time.Hour, redisCache)
 	} else {
-		cacheManager = NewDomainCacheManager(time.Hour)
+		cacheManager = NewDomainCacheManager(24 * time.Hour)
 	}
 	resolver := &DefaultResolver{timeout: 2 * time.Second}
 
