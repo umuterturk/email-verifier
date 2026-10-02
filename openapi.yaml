@@ -5,6 +5,8 @@ info:
   description: |
     Privacy-first email validation API. Checks syntax, DNS/MX, known disposable domains, and role addresses, and can suggest typos.
     It does not perform SMTP RCPT TO, detect catch-all domains, predict bounces, or prove that a specific mailbox exists.
+    SMTP is omitted because a RCPT TO reply does not prove an inbox exists: major providers hide mailbox existence, catch-all domains accept every address, many servers block or throttle automated probes, and a live SMTP connection per address is too slow.
+    No check can know with certainty that a specific mailbox exists. Syntax and MX only show a well-formed address on a domain that can accept mail. There is no public directory of real mailboxes.
     VALID means the address is syntactically valid, the domain has usable MX, and it is not a known disposable address. It does not mean an inbox exists.
 
 servers:

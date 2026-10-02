@@ -31,6 +31,29 @@ No account and no usage limits. Batch validation accepts up to 100 addresses. GD
 - Catch-all domains
 - Whether a message will bounce
 
+### Why we don't check SMTP
+
+SMTP `RCPT TO` asks a mail server whether it will accept one address. That reply does not prove the mailbox exists:
+
+- Major providers such as Gmail, Outlook, and Yahoo answer in ways that hide whether the inbox is real, so addresses cannot be harvested.
+- Catch-all domains accept every local-part, so a positive reply still does not mean that inbox exists.
+- Many servers block or throttle automated SMTP connections, so the check fails or lies.
+- Each address needs its own live connection to a mail server. That is too slow for this API.
+
+A yes would look like inbox verification and still be wrong. This API never opens an SMTP session, and that check will not be added.
+
+### Why an email's existence can't be known for certain
+
+No check can say with certainty that a specific mailbox exists.
+
+- Syntax only says the address is well formed.
+- DNS and MX only say the domain can accept mail. They say nothing about the local-part.
+- There is no public directory of real mailboxes.
+- SMTP `RCPT TO`, even when someone runs it, is not certain either. Providers hide existence, catch-all domains accept every address, and servers block or mislead automated probes.
+- An address such as `blablablabla@gmail.com` can pass syntax and MX checks here and still not be a real inbox.
+
+The reliable confirmation is double opt-in: send a link and require a click.
+
 `VALID` means the address is syntactically valid, the domain has usable MX, and it is not a known disposable address. It does not mean an inbox exists.
 
 `mailbox_exists` is `true` when the email provider (domain MX) can accept mail. The service sets it from the MX check, so it matches `mx_records`. It does not prove the local-part mailbox exists. A domain with only an A record (RFC 5321 fallback) can have `domain_exists: true` and `mailbox_exists: false`.
@@ -615,7 +638,7 @@ The project includes several types of tests:
 
 ## Limitations
 
-This API does not check whether a specific mailbox exists. SMTP verification is not performed and will not be added.
+This API does not check whether a specific mailbox exists, and no check can know that with certainty. Syntax and MX only show that the address is well formed and that the domain can accept mail. There is no public directory of real mailboxes. SMTP `RCPT TO` is not used, and would not settle it anyway: providers hide existence, catch-all domains accept every address, servers block automated probes, and a live SMTP connection per address is too slow. That check will not be added.
 
 It does not:
 
