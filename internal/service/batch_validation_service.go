@@ -226,6 +226,7 @@ func (s *BatchValidationService) validateSingleEmail(
 	response.Validations.MXRecords = domainValidation.MXRecords
 	response.Validations.IsDisposable = domainValidation.IsDisposable
 	response.Validations.IsRoleBased = s.emailRuleValidator.IsRoleBased(email)
+	// Same signal as MXRecords: the provider can accept mail, not inbox existence.
 	response.Validations.MailboxExists = response.Validations.MXRecords
 
 	// Always check for typo suggestions

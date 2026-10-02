@@ -117,6 +117,7 @@ func (s *EmailService) ValidateEmail(email string) model.EmailValidationResponse
 	response.Validations.MXRecords = hasMX
 	response.Validations.IsDisposable = isDisposable
 	response.Validations.IsRoleBased = s.emailRuleValidator.IsRoleBased(email)
+	// MailboxExists tracks usable MX (the provider can accept mail), not a specific inbox.
 	response.Validations.MailboxExists = hasMX
 
 	// Always check for typo suggestions
