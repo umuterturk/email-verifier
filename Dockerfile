@@ -24,6 +24,7 @@ WORKDIR /app
 COPY --from=builder /app/main .
 COPY --from=builder /app/config ./config
 COPY --from=builder /app/static ./static
+COPY --from=builder /app/openapi.yaml ./openapi.yaml
 
 # Install ca-certificates for secure Redis connections
 RUN apk --no-cache add ca-certificates

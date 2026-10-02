@@ -19,9 +19,11 @@ const (
 
 // ValidationResults represents the results of various validation checks
 type ValidationResults struct {
-	Syntax        bool `json:"syntax"`
-	DomainExists  bool `json:"domain_exists"`
-	MXRecords     bool `json:"mx_records"`
+	Syntax       bool `json:"syntax"`
+	DomainExists bool `json:"domain_exists"`
+	MXRecords    bool `json:"mx_records"`
+	// MailboxExists is true when the domain has usable MX and the provider can accept mail.
+	// It does not mean the local-part mailbox or inbox exists. The service sets it equal to MXRecords.
 	MailboxExists bool `json:"mailbox_exists"`
 	IsDisposable  bool `json:"is_disposable"`
 	IsRoleBased   bool `json:"is_role_based"`

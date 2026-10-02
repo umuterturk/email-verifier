@@ -119,9 +119,11 @@ func (v *EmailValidator) IsRoleBased(email string) bool {
 func (v *EmailValidator) CalculateScore(validations map[string]bool) int {
 	score := 0
 	weights := map[string]int{
-		"syntax":         20,
-		"domain_exists":  20,
-		"mx_records":     20,
+		"syntax":        20,
+		"domain_exists": 20,
+		"mx_records":    20,
+		// mailbox_exists is weighted like mx_records because the service sets it from the MX check.
+		// It does not represent SMTP or inbox existence.
 		"mailbox_exists": 20,
 		"is_disposable":  10,
 		"is_role_based":  10,

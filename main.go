@@ -59,6 +59,12 @@ func main() {
 	fs := http.FileServer(http.Dir("static"))
 	finalMux.Handle("/static/", http.StripPrefix("/static/", fs))
 
+	// Serve the OpenAPI document so the site docs match the spec in the repo.
+	finalMux.HandleFunc("/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/yaml")
+		http.ServeFile(w, r, "openapi.yaml")
+	})
+
 	// Serve index.html at the root
 	finalMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {

@@ -1,24 +1,39 @@
-# Email Validator Service
+# Email Validator
 
 [![Tests](https://github.com/umuterturk/email-verifier/actions/workflows/tests.yml/badge.svg)](https://github.com/umuterturk/email-verifier/actions/workflows/tests.yml)
 [![Build and Publish Docker Image](https://github.com/umuterturk/email-verifier/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/umuterturk/email-verifier/actions/workflows/docker-publish.yml)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-yellow.svg)](https://www.buymeacoffee.com/codeonbrew)
 [![Patreon](https://img.shields.io/badge/Patreon-Support-f96854.svg)](https://www.patreon.com/codeonbrew)
 
-A high-performance, cost-effective email validation service designed for indie hackers and small startups. The service validates email addresses in real-time, checking syntax, domain existence, MX records, and detecting disposable email providers. The main focus is on precision instead of recall, meaning instead of edge cases the focus is on having the biggest coverage.
+Privacy-first, free, open-source email validation API. It checks syntax, DNS/MX, disposable domains, and role addresses. It does not confirm that a specific inbox exists. Addresses are not stored. MIT licensed.
 
 🌐 **Website**: [https://rapid-email-verifier.fly.dev/](https://rapid-email-verifier.fly.dev/)
 
 🚀 **API**
 [https://rapid-email-verifier.fly.dev/api/validate](https://rapid-email-verifier.fly.dev/api/validate?email=user@example.com)
 
-This is a completely free and open source email validation API that never stores your data. Built to support solopreneurs and the developer community. Features include:
-- Zero data storage - your emails are never saved!
-- GDPR, CCPA, and PIPEDA compliant
-- No authentication required
-- No usage limits
-- Quick response times
-- Batch validation up to 100 emails
+No account and no usage limits. Batch validation accepts up to 100 addresses. GDPR, CCPA, and PIPEDA: addresses are processed in memory and not saved.
+
+## What we check
+
+- Syntax
+- Domain and MX records (the provider can accept mail)
+- Known disposable domains
+- Role addresses (`admin@`, `info@`, and similar)
+- Alias normalization for major providers (Gmail, Yahoo, Outlook/Hotmail)
+- Typo suggestions
+- A derived score and status
+
+## What we don't check
+
+- SMTP `RCPT TO`, or any mailbox handshake
+- Whether a specific mailbox or inbox exists
+- Catch-all domains
+- Whether a message will bounce
+
+`VALID` means the address is syntactically valid, the domain has usable MX, and it is not a known disposable address. It does not mean an inbox exists.
+
+`mailbox_exists` is `true` when the email provider (domain MX) can accept mail. The service sets it from the MX check, so it matches `mx_records`. It does not prove the local-part mailbox exists. A domain with only an A record (RFC 5321 fallback) can have `domain_exists: true` and `mailbox_exists: false`.
 
 ## Features
 
@@ -39,12 +54,14 @@ This is a completely free and open source email validation API that never stores
 ### Valid Email Formats
 ```json
 // Standard email
+// mailbox_exists matches mx_records. It means the provider can accept mail, not that this inbox exists.
 {
   "email": "user@example.com",
   "validations": {
     "syntax": true,
     "domain_exists": true,
-    "mx_records": true
+    "mx_records": true,
+    "mailbox_exists": true
   },
   "status": "VALID"
 }
@@ -137,15 +154,17 @@ This is a completely free and open source email validation API that never stores
 }
 
 // Role-based email detection
+// is_role_based is a flag. Status stays VALID when syntax and MX pass and the address is not disposable.
 {
   "email": "admin@company.com",
   "validations": {
     "syntax": true,
     "domain_exists": true,
     "mx_records": true,
+    "mailbox_exists": true,
     "is_role_based": true
   },
-  "status": "PROBABLY_VALID"
+  "status": "VALID"
 }
 
 // Email alias detection
@@ -207,9 +226,10 @@ POST /api/validate/batch
         "syntax": true,
         "domain_exists": true,
         "mx_records": true,
+        "mailbox_exists": true,
         "is_role_based": true
       },
-      "status": "PROBABLY_VALID"
+      "status": "VALID"
     }
   ]
 }
@@ -593,35 +613,33 @@ The project includes several types of tests:
 ./test_api.sh
 ```
 
-## Disclaimers
+## Limitations
 
-### Accuracy Disclaimer
-The results provided by this service are based on best-effort validation and should be treated as recommendations rather than absolute truth. Several factors can affect the accuracy of results:
+This API does not check whether a specific mailbox exists. SMTP verification is not performed and will not be added.
+
+It does not:
+
+- Open an SMTP session or send `RCPT TO`
+- Prove that a local-part such as `blablablabla@gmail.com` is a real inbox
+- Detect catch-all domains
+- Predict bounces or delivery
+
+`mailbox_exists` is `true` only when the domain has usable MX records. That means the email provider can accept mail for the domain. The field is assigned from the MX check and matches `mx_records`. It is not an inbox-existence result.
+
+`VALID` means syntax passed, the domain has usable MX, and the address is not a known disposable. It is not a statement that the inbox exists or that mail will be delivered.
+
+DNS answers change, lookups fail, and providers differ on which syntax they accept. Treat results as a best-effort signal. The reliable way to confirm someone controls an address is double opt-in: send a link and require a click.
+
+### Accuracy disclaimer
+Results are best-effort and should be treated as a signal, not absolute truth. Several factors can affect them:
 - Domain DNS records may change
 - Temporary DNS resolution issues
 - Network connectivity problems
-- Email server configuration changes
-- Rate limiting by email servers
-- Syntax validation differences between email providers
+- Rate limiting by DNS resolvers
+- Syntax rules that differ between providers
 
-### Legal Disclaimer
-This service is provided "as is" without any warranties or guarantees of any kind, either express or implied. The validation results are for informational purposes only and should not be considered legally binding or definitive. We expressly disclaim any liability for damages of any kind arising from the use of this service or its results. Users are solely responsible for verifying the accuracy of email addresses through additional means before using them for any purpose.
-
-## Email Existence Verification Limitations
-
-It's important to understand that this service (like any email validation service) **cannot definitively verify if an email address actually exists** or if it will accept mail. For example, an address like `blablablabla@gmail.com` may or may not exist, and there is no reliable way to determine this with certainty.
-
-Modern email providers have implemented extensive security measures specifically to prevent email existence checking:
-
-- **Catch-all policies**: Many domains use catch-all configurations that accept mail for any address at their domain
-- **Anti-harvesting measures**: Major providers like Gmail, Yahoo, and Outlook deliberately return positive responses for all syntactically valid addresses to prevent email harvesting
-- **Anti-spam protections**: Email servers often employ throttling, temporary blocks, and other anti-spam techniques against automated verification attempts
-- **SMTP blocking**: Most major email providers block SMTP-based verification techniques to protect user privacy
-- **False positives/negatives**: Even when servers respond, they may provide misleading responses to protect privacy
-
-While our service can validate syntax, verify domain existence, and check MX records, these checks only confirm that the domain *could* receive email, not that a specific address exists or is actively monitored.
-
-For the most reliable verification, consider using a double opt-in process where users must confirm their email by clicking a link sent to that address.
+### Legal disclaimer
+This service is provided "as is" without any warranties or guarantees of any kind, either express or implied. The validation results are for informational purposes only and should not be considered legally binding or definitive. We expressly disclaim any liability for damages of any kind arising from the use of this service or its results. Users are solely responsible for confirming email addresses through additional means before using them for any purpose.
 
 ## Using Docker
 

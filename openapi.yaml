@@ -2,7 +2,10 @@ openapi: 3.1.0
 info:
   title: Email Validator API
   version: 1.0.0
-  description: API for validating email addresses and providing suggestions for typos
+  description: |
+    Privacy-first email validation API. Checks syntax, DNS/MX, known disposable domains, and role addresses, and can suggest typos.
+    It does not perform SMTP RCPT TO, detect catch-all domains, predict bounces, or prove that a specific mailbox exists.
+    VALID means the address is syntactically valid, the domain has usable MX, and it is not a known disposable address. It does not mean an inbox exists.
 
 servers:
   - url: /api
@@ -11,7 +14,9 @@ paths:
   /validate:
     get:
       summary: Validate a single email address
-      description: Validates an email address and returns detailed information about its validity
+      description: |
+        Checks syntax, DNS/MX, disposable domains, and role addresses.
+        Does not confirm that a specific mailbox exists.
       parameters:
         - name: email
           in: query
@@ -41,7 +46,9 @@ paths:
     
     post:
       summary: Validate a single email address
-      description: Validates an email address and returns detailed information about its validity
+      description: |
+        Checks syntax, DNS/MX, disposable domains, and role addresses.
+        Does not confirm that a specific mailbox exists.
       requestBody:
         required: true
         content:
@@ -221,13 +228,20 @@ components:
               description: Whether the email has valid syntax
             domain_exists:
               type: boolean
-              description: Whether the domain exists
+              description: >
+                Whether the domain can receive email: usable MX records, or an A/AAAA record
+                when MX is absent (RFC 5321 fallback). This is not a website-existence check.
             mx_records:
               type: boolean
-              description: Whether the domain has valid MX records
+              description: >
+                Whether the domain has usable MX records. A null MX (RFC 7505) is false.
+                mailbox_exists is set from this same check.
             mailbox_exists:
               type: boolean
-              description: Whether the mailbox exists
+              description: >
+                True when the email provider (the domain's MX) can accept mail.
+                The service sets this from the MX check, so it matches mx_records.
+                It does not prove that the local-part mailbox or inbox exists, and it is not an SMTP result.
             is_disposable:
               type: boolean
               description: Whether the email is from a disposable provider
@@ -250,7 +264,9 @@ components:
             - INVALID_DOMAIN
             - NO_MX_RECORDS
             - DISPOSABLE
-          description: Validation status
+          description: >
+            Validation status. VALID means the address is syntactically valid, the domain has
+            usable MX, and it is not a known disposable address. It does not mean a specific inbox exists.
         aliasOf:
           type: string
           format: email
